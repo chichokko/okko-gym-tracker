@@ -1,8 +1,11 @@
-import React from 'react';
-import { Card, Button, Badge } from './ui';
+import React, { useState, useEffect } from 'react';
+import { User, Session } from '../../../types';
+import { Card, Button, Input, Badge, MobileCardList, PageHeader, EmptyState, LoadingSpinner } from '../../ui';
+import { Play, Calendar, Trophy, ChevronRight, Clock, Activity, History } from 'lucide-react';
+import * as DataService from '../../../services/dataService';
+import { useNavigate } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, AreaChart, Area } from 'recharts';
-import { TrendingUp, Calendar, Trophy, Zap } from 'lucide-react';
-import { Session, User } from '../types';
+import { TrendingUp, Zap } from 'lucide-react';
 
 // Mock History Data
 const DATA_SQUAT = [

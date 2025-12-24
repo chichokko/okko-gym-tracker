@@ -1,43 +1,33 @@
 import React, { useState, useEffect } from 'react';
-import { Exercise, SessionExercise, SetLog, User, Routine, Session } from '../types';
+import { ActiveSession, generateId } from './features/sessions/types';
 import { toast } from './ui';
 import * as DataService from '../services/dataService';
 import SessionDashboard from './features/sessions/SessionDashboard';
 import SessionSetupWizard from './features/sessions/SessionSetupWizard';
 import SessionFocusView from './features/sessions/SessionFocusView';
-import { ActiveSession, generateId } from './features/sessions/types';
+import { useGymData } from '../context/GymContext';
+import { User } from '../types';
 
 const CoachSessionLogger: React.FC = () => {
+    // Context Data
+    const { students, routines, exercises, isLoading: isGlobalLoading } = useGymData();
+
     // View state
     const [viewMode, setViewMode] = useState<'DASHBOARD' | 'SETUP' | 'FOCUS'>('DASHBOARD');
     const [focusedSessionId, setFocusedSessionId] = useState<string | null>(null);
 
-    // Data
-    const [availableStudents, setAvailableStudents] = useState<User[]>([]);
-    const [availableRoutines, setAvailableRoutines] = useState<Routine[]>([]);
-    const [availableExercises, setAvailableExercises] = useState<Exercise[]>([]);
+    // Local Data (Transactional)
     const [activeSessions, setActiveSessions] = useState<ActiveSession[]>([]);
+    const [isLoadingSessions, setIsLoadingSessions] = useState(true);
 
-    // Loading state
-    const [isLoading, setIsLoading] = useState(true);
-
-    // Initial data load
+    // Load Active Sessions
     useEffect(() => {
-        const loadData = async () => {
-            setIsLoading(true);
+        const loadSessions = async () => {
+            setIsLoadingSessions(true);
             try {
-                const [students, routines, exercises, dbSessions] = await Promise.all([
-                    DataService.getStudents(),
-                    DataService.getRoutines(),
-                    DataService.getExercises(),
-                    DataService.getActiveSessions()
-                ]);
+                const dbSessions = await DataService.getActiveSessions();
 
-                setAvailableStudents(students);
-                setAvailableRoutines(routines);
-                setAvailableExercises(exercises);
-
-                // Map DB sessions to UI format
+                // Map DB sessions to UI format using Global Context Students
                 const mappedSessions: ActiveSession[] = dbSessions.map(dbs => ({
                     internalId: dbs.id,
                     student: students.find(s => s.id === dbs.studentId) || { id: dbs.studentId, name: 'Desconocido', role: 'STUDENT' } as User,
@@ -50,27 +40,30 @@ const CoachSessionLogger: React.FC = () => {
 
                 setActiveSessions(mappedSessions);
             } catch (error) {
-                toast.error('Error al cargar datos');
                 console.error(error);
+                toast.error('Error al cargar sesiones activas');
             } finally {
-                setIsLoading(false);
+                setIsLoadingSessions(false);
             }
         };
-        loadData();
-    }, []);
+
+        if (!isGlobalLoading) {
+            loadSessions();
+        }
+    }, [isGlobalLoading, students]); // Reload if students change (initial load)
 
     // Start new session
     const handleStartSession = async (studentId: string, routineId: string) => {
-        const student = availableStudents.find(s => s.id === studentId);
-        const routine = availableRoutines.find(r => r.id === routineId);
+        const student = students.find(s => s.id === studentId);
+        const routine = routines.find(r => r.id === routineId);
         if (!student) return;
 
-        setIsLoading(true);
+        setIsLoadingSessions(true);
 
         // Build initial exercises from routine
-        const initialExercises: SessionExercise[] = routine
+        const initialExercises: import('../types').SessionExercise[] = routine
             ? routine.exercises.map(re => {
-                const baseEx = availableExercises.find(e => e.id === re.exerciseId);
+                const baseEx = exercises.find(e => e.id === re.exerciseId);
                 if (!baseEx) return null;
                 return {
                     id: generateId(),
@@ -84,7 +77,7 @@ const CoachSessionLogger: React.FC = () => {
                     })),
                     notes: `Objetivo: ${re.sets} series x ${re.reps}`
                 };
-            }).filter(Boolean) as SessionExercise[]
+            }).filter(Boolean) as import('../types').SessionExercise[]
             : [];
 
         const newSession: ActiveSession = {
@@ -118,49 +111,47 @@ const CoachSessionLogger: React.FC = () => {
             toast.error('Error al crear sesión');
             console.error(error);
         } finally {
-            setIsLoading(false);
+            setIsLoadingSessions(false);
             setViewMode('DASHBOARD');
         }
     };
 
-    // Save progress
     const handleSaveProgress = async (sessionId: string) => {
         const session = activeSessions.find(s => s.internalId === sessionId);
         if (!session) return;
 
-        setIsLoading(true);
-        try {
-            const saved = await DataService.saveSession({
+        // No loading state needed for background save, just toast promise maybe?
+        // Using existing pattern for now
+
+        toast.promise(
+            DataService.saveSession({
                 id: session.isDbPersisted ? session.internalId : '',
                 studentId: session.student.id,
                 coachId: '',
                 date: session.startTime,
                 active: true,
                 exercises: session.exercises
-            });
-
-            if (saved?.id && !session.isDbPersisted) {
-                updateSession(sessionId, s => ({ ...s, internalId: saved.id, isDbPersisted: true }));
-                if (focusedSessionId === sessionId) setFocusedSessionId(saved.id);
+            }).then(saved => {
+                if (saved?.id && !session.isDbPersisted) {
+                    updateSession(sessionId, s => ({ ...s, internalId: saved.id, isDbPersisted: true }));
+                    if (focusedSessionId === sessionId) setFocusedSessionId(saved.id);
+                }
+            }),
+            {
+                loading: 'Guardando...',
+                success: 'Progreso guardado',
+                error: 'Error al guardar'
             }
-
-            toast.success('Progreso guardado');
-        } catch (error) {
-            toast.error('Error al guardar');
-            console.error(error);
-        } finally {
-            setIsLoading(false);
-        }
+        );
     };
 
-    // Finish session
     const handleFinishSession = async (sessionId: string) => {
         const session = activeSessions.find(s => s.internalId === sessionId);
         if (!session) return;
 
         if (!confirm(`¿Terminar entrenamiento de ${session.student.name}?`)) return;
 
-        setIsLoading(true);
+        setIsLoadingSessions(true);
         try {
             await DataService.saveSession({
                 id: session.isDbPersisted ? session.internalId : '',
@@ -182,28 +173,23 @@ const CoachSessionLogger: React.FC = () => {
             toast.error('Error al finalizar sesión');
             console.error(error);
         } finally {
-            setIsLoading(false);
+            setIsLoadingSessions(false);
         }
     };
 
-    // Update session helper
     const updateSession = (sessionId: string, updater: (s: ActiveSession) => ActiveSession) => {
         setActiveSessions(prev => prev.map(s => s.internalId === sessionId ? updater(s) : s));
     };
 
-    // Navigation
     const handleSelectSession = (sessionId: string) => {
         setFocusedSessionId(sessionId);
         setViewMode('FOCUS');
     };
 
-    // Render views
     if (viewMode === 'SETUP') {
         return (
             <SessionSetupWizard
-                availableStudents={availableStudents}
-                availableRoutines={availableRoutines}
-                isLoading={isLoading}
+                isLoading={isLoadingSessions}
                 onBack={() => setViewMode('DASHBOARD')}
                 onStart={handleStartSession}
             />
@@ -220,8 +206,8 @@ const CoachSessionLogger: React.FC = () => {
         return (
             <SessionFocusView
                 session={session}
-                availableExercises={availableExercises}
-                isLoading={isLoading}
+                availableExercises={exercises} // From Context
+                isLoading={isLoadingSessions} // Or separate saving state
                 onBack={() => setViewMode('DASHBOARD')}
                 onSaveProgress={() => handleSaveProgress(session.internalId)}
                 onFinishSession={() => handleFinishSession(session.internalId)}
@@ -233,7 +219,7 @@ const CoachSessionLogger: React.FC = () => {
     return (
         <SessionDashboard
             activeSessions={activeSessions}
-            isLoading={isLoading}
+            isLoading={isGlobalLoading || isLoadingSessions}
             onStartNew={() => setViewMode('SETUP')}
             onSelectSession={handleSelectSession}
         />

@@ -27,7 +27,7 @@ export const toast = {
     loading: (message: string) => sonnerToast.loading(message),
     dismiss: (id?: string | number) => sonnerToast.dismiss(id),
     promise: <T,>(
-        promise: Promise<T>,
+        promise: Promise<T> | (() => Promise<T>),
         options: {
             loading: string;
             success: string;

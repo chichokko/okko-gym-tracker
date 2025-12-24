@@ -1,23 +1,20 @@
 import React, { useState } from 'react';
 import { Card, Button, IconButton, PageHeader, EmptyState, LoadingSpinner } from '../../ui';
 import { Plus, Check, ArrowLeft, Users } from 'lucide-react';
-import { User, Routine } from '../../../types';
+import { useGymData } from '../../../context/GymContext';
 
 interface SessionSetupWizardProps {
-    availableStudents: User[];
-    availableRoutines: Routine[];
     isLoading: boolean;
     onBack: () => void;
     onStart: (studentId: string, routineId: string) => void;
 }
 
 const SessionSetupWizard: React.FC<SessionSetupWizardProps> = ({
-    availableStudents,
-    availableRoutines,
     isLoading,
     onBack,
     onStart,
 }) => {
+    const { students, routines } = useGymData();
     const [studentId, setStudentId] = useState('');
     const [routineId, setRoutineId] = useState('');
 
@@ -38,11 +35,11 @@ const SessionSetupWizard: React.FC<SessionSetupWizardProps> = ({
                 {/* Step 1: Select Student */}
                 <div>
                     <label className="text-sm font-bold text-slate-500 uppercase">1. Alumno</label>
-                    {availableStudents.length === 0 ? (
+                    {students.length === 0 ? (
                         <EmptyState icon={Users} message="No hay alumnos registrados." />
                     ) : (
                         <div className="grid grid-cols-1 gap-2 mt-2 max-h-60 overflow-y-auto">
-                            {availableStudents.map(s => (
+                            {students.map(s => (
                                 <div
                                     key={s.id}
                                     onClick={() => setStudentId(s.id)}
@@ -76,7 +73,7 @@ const SessionSetupWizard: React.FC<SessionSetupWizardProps> = ({
                             >
                                 <Plus size={18} /> Sin Rutina (Libre)
                             </div>
-                            {availableRoutines.map(r => (
+                            {routines.map(r => (
                                 <div
                                     key={r.id}
                                     onClick={() => setRoutineId(r.id)}
