@@ -1,0 +1,32 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+    font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+}
+
+@theme {
+    --font-sans: 'Inter', 'sans-serif';
+    --color-primary: #0f172a;
+    --color-accent: #3b82f6;
+    --color-success: #10b981;
+    --color-surface: #f8fafc;
+    --color-dark-surface: #1e293b;
+}
+
+body {
+    margin: 0;
+    min-width: 320px;
+    min-height: 100vh;
+}
+
+/* Hide scrollbar for clean mobile UI */
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+
+.no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}

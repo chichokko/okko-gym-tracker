@@ -1,0 +1,5 @@
+{
+  "name": "OKKO Gym Tracker",
+  "description": "A PWA-ready gym progress tracker connecting Coaches and Students with real-time session logging and analytics.",
+  "requestFramePermissions": []
+}
