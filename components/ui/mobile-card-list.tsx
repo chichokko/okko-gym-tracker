@@ -61,50 +61,44 @@ export function MobileCardList<T>({
     }
 
     return (
-        <div className="space-y-3">
+        <div className="space-y-4">
             {data.map((item) => {
                 const actions = getActions ? getActions(item) : [];
 
                 return (
                     <Card
                         key={keyExtractor(item)}
-                        className="relative p-4 hover:border-blue-500 transition-colors"
+                        className="relative flex flex-col justify-between hover:border-blue-500 transition-all cursor-pointer group"
                         onClick={onCardClick ? () => onCardClick(item) : undefined}
                     >
-                        <div className="flex items-start gap-3">
-                            {/* Content */}
-                            <div className="flex-1 min-w-0">
-                                {/* Title */}
-                                <div className="font-bold text-slate-900 dark:text-white truncate">
+                        <div>
+                            <div className="flex justify-between items-start mb-2">
+                                <div className="font-bold text-lg md:text-xl text-slate-900 dark:text-white line-clamp-1 pr-8">
                                     {titleField(item)}
                                 </div>
-
-                                {/* Subtitle */}
-                                {subtitleField && (
-                                    <div className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-                                        {subtitleField(item)}
-                                    </div>
-                                )}
-
-                                {/* Meta fields */}
-                                {metaFields.length > 0 && (
-                                    <div className="flex flex-wrap gap-2 mt-2">
-                                        {metaFields.map((field, idx) => (
-                                            <span
-                                                key={idx}
-                                                className={`text-xs ${field.className || 'text-slate-500 dark:text-slate-400'}`}
-                                            >
-                                                {field.render(item)}
-                                            </span>
-                                        ))}
+                                {/* Actions Menu Positioned Absolute top-right */}
+                                {actions.length > 0 && (
+                                    <div onClick={(e) => e.stopPropagation()} className="absolute top-3 right-3 z-10">
+                                        <DropdownMenu items={actions} />
                                     </div>
                                 )}
                             </div>
 
-                            {/* Actions Menu */}
-                            {actions.length > 0 && (
-                                <div onClick={(e) => e.stopPropagation()}>
-                                    <DropdownMenu items={actions} />
+                            {/* Subtitle */}
+                            {subtitleField && (
+                                <div className="text-sm text-slate-500 dark:text-slate-400 mb-3 font-medium">
+                                    {subtitleField(item)}
+                                </div>
+                            )}
+
+                            {/* Meta fields */}
+                            {metaFields.length > 0 && (
+                                <div className="space-y-1 bg-gray-50 dark:bg-slate-800/50 p-3 rounded-lg">
+                                    {metaFields.map((field, idx) => (
+                                        <div key={idx} className={`text-sm ${field.className || 'text-slate-600 dark:text-slate-300'}`}>
+                                            {field.render(item)}
+                                        </div>
+                                    ))}
                                 </div>
                             )}
                         </div>

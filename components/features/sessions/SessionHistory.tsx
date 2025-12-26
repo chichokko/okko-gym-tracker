@@ -10,7 +10,8 @@ import {
     Card,
     IconButton,
     LoadingOverlay,
-    EmptyState
+    EmptyState,
+    MobileCardList
 } from '../../ui';
 import * as DataService from '../../../services/dataService';
 import type { CompletedSession } from '../../../services/dataService';
@@ -105,20 +106,45 @@ const SessionHistory: React.FC = () => {
                     message="No hay sesiones completadas todavía."
                 />
             ) : (
-                <DataTable
-                    columns={columns}
-                    data={filteredSessions}
-                    keyExtractor={(s) => s.id}
-                    emptyMessage="No se encontraron sesiones."
-                    renderActions={(session) => (
-                        <IconButton
-                            onClick={() => setSelectedSession(session)}
-                            className="hover:text-blue-500"
-                        >
-                            <Eye size={18} />
-                        </IconButton>
-                    )}
-                />
+                <>
+                    <div className="hidden md:block">
+                        <DataTable
+                            columns={columns}
+                            data={filteredSessions}
+                            keyExtractor={(s) => s.id}
+                            emptyMessage="No se encontraron sesiones."
+                            renderActions={(session) => (
+                                <IconButton
+                                    onClick={() => setSelectedSession(session)}
+                                    className="hover:text-blue-500"
+                                >
+                                    <Eye size={18} />
+                                </IconButton>
+                            )}
+                        />
+                    </div>
+                    <div className="block md:hidden">
+                        <MobileCardList<CompletedSession>
+                            data={filteredSessions}
+                            keyExtractor={(s) => s.id}
+                            titleField={(s) => s.studentName}
+                            subtitleField={(s) => formatDate(s.date)}
+                            metaFields={[
+                                {
+                                    key: 'stats',
+                                    render: (s) => (
+                                        <div className="flex justify-between items-center text-xs">
+                                            <span>{s.exerciseCount} Ejercicios</span>
+                                            <Badge color="bg-blue-100 text-blue-700">{s.totalVolume.toLocaleString()} Kg</Badge>
+                                        </div>
+                                    )
+                                }
+                            ]}
+                            emptyMessage="No se encontraron sesiones."
+                            onCardClick={(s) => setSelectedSession(s)}
+                        />
+                    </div>
+                </>
             )}
 
             {/* Session Detail Modal */}

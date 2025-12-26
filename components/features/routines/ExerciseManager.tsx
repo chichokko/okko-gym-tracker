@@ -136,68 +136,66 @@ const ExerciseManager: React.FC = () => {
             {filteredExercises.length === 0 ? (
                 <EmptyState icon={Dumbbell} message="No se encontraron ejercicios." />
             ) : (
-                <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
-                    <div className="overflow-x-auto">
-                        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
-                            {/* Desktop View */}
-                            <div className="hidden md:block overflow-x-auto">
-                                <table className="w-full text-left border-collapse">
-                                    <thead>
-                                        <tr className="bg-gray-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">
-                                            <th className="p-4 font-bold rounded-tl-lg">Nombre</th>
-                                            <th className="p-4 font-bold">Grupo Muscular</th>
-                                            <th className="p-4 font-bold text-right rounded-tr-lg">Acciones</th>
+                <>
+                    {/* Desktop View */}
+                    <div className="hidden md:block bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse">
+                                <thead>
+                                    <tr className="bg-gray-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">
+                                        <th className="p-4 font-bold rounded-tl-lg">Nombre</th>
+                                        <th className="p-4 font-bold">Grupo Muscular</th>
+                                        <th className="p-4 font-bold text-right rounded-tr-lg">Acciones</th>
+                                    </tr>
+                                </thead >
+                                <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
+                                    {filteredExercises.map((ex) => (
+                                        <tr key={ex.id} className="hover:bg-gray-50 dark:hover:bg-slate-800/30 transition-colors group">
+                                            <td className="p-4 font-medium text-slate-900 dark:text-white flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400">
+                                                    <Dumbbell size={16} />
+                                                </div>
+                                                {ex.name}
+                                            </td>
+                                            <td className="p-4">
+                                                <Badge color="bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                                                    {ex.muscleGroup}
+                                                </Badge>
+                                            </td>
+                                            <td className="p-4 text-right">
+                                                <div className="flex justify-end gap-2 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                                                    <IconButton onClick={() => handleEdit(ex)} className="hover:text-blue-500">
+                                                        <Edit2 size={18} />
+                                                    </IconButton>
+                                                    <IconButton onClick={() => handleDelete(ex.id)} className="hover:text-red-500">
+                                                        <Trash2 size={18} />
+                                                    </IconButton>
+                                                </div>
+                                            </td>
                                         </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
-                                        {filteredExercises.map((ex) => (
-                                            <tr key={ex.id} className="hover:bg-gray-50 dark:hover:bg-slate-800/30 transition-colors group">
-                                                <td className="p-4 font-medium text-slate-900 dark:text-white flex items-center gap-3">
-                                                    <div className="w-8 h-8 rounded bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400">
-                                                        <Dumbbell size={16} />
-                                                    </div>
-                                                    {ex.name}
-                                                </td>
-                                                <td className="p-4">
-                                                    <Badge color="bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                                                        {ex.muscleGroup}
-                                                    </Badge>
-                                                </td>
-                                                <td className="p-4 text-right">
-                                                    <div className="flex justify-end gap-2 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                                                        <IconButton onClick={() => handleEdit(ex)} className="hover:text-blue-500">
-                                                            <Edit2 size={18} />
-                                                        </IconButton>
-                                                        <IconButton onClick={() => handleDelete(ex.id)} className="hover:text-red-500">
-                                                            <Trash2 size={18} />
-                                                        </IconButton>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-
-                            {/* Mobile View */}
-                            <div className="block md:hidden">
-                                <MobileCardList<Exercise>
-                                    data={filteredExercises}
-                                    keyExtractor={(ex) => ex.id}
-                                    titleField={(ex) => ex.name}
-                                    subtitleField={(ex) => ex.muscleGroup}
-                                    getActions={(ex) => [
-                                        { label: 'Editar', icon: Edit2, onClick: () => handleEdit(ex) },
-                                        { label: 'Eliminar', icon: Trash2, onClick: () => handleDelete(ex.id), variant: 'danger' }
-                                    ]}
-                                    emptyMessage="No se encontraron ejercicios."
-                                />
-                            </div>
+                                    ))}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
-                </div>
+
+                    {/* Mobile View */}
+                    <div className="block md:hidden">
+                        <MobileCardList<Exercise>
+                            data={filteredExercises}
+                            keyExtractor={(ex) => ex.id}
+                            titleField={(ex) => ex.name}
+                            subtitleField={(ex) => ex.muscleGroup}
+                            getActions={(ex) => [
+                                { label: 'Editar', icon: Edit2, onClick: () => handleEdit(ex) },
+                                { label: 'Eliminar', icon: Trash2, onClick: () => handleDelete(ex.id), variant: 'danger' }
+                            ]}
+                            emptyMessage="No se encontraron ejercicios."
+                        />
+                    </div>
+                </>
             )}
-        </div>
+        </div >
     );
 };
 

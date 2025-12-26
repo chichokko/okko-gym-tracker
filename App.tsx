@@ -90,38 +90,43 @@ const App: React.FC = () => {
   if (!user && !isUpdatePassword) {
     return <Login onLoginSuccess={setUser} />;
   }
-
   return (
     <>
       <GymProvider>
         <Router>
           <Routes>
+            {/* Public/Auth Routes */}
             <Route path="/update-password" element={<UpdatePassword />} />
-          </Routes>
 
-          {user && (
-            <Layout user={user} onLogout={handleLogout} isDarkMode={isDarkMode} toggleTheme={toggleTheme}>
-              <Routes>
-                {user.role === UserRole.COACH ? (
-                  <>
-                    <Route path="/" element={<Navigate to="/logger" replace />} />
-                    <Route path="/logger" element={<CoachSessionLogger />} />
-                    <Route path="/alumnos" element={<StudentManager />} />
-                    <Route path="/historial" element={<SessionHistory />} />
-                    <Route path="/rutinas" element={<RoutineManager />} />
-                    <Route path="/ejercicios" element={<ExerciseManager />} />
-                    <Route path="*" element={<Navigate to="/logger" replace />} />
-                  </>
-                ) : (
-                  <>
-                    <Route path="/" element={<StudentDashboard user={user} />} />
-                    <Route path="/historial" element={<SessionHistory />} />
-                    <Route path="*" element={<Navigate to="/" replace />} />
-                  </>
-                )}
-              </Routes>
-            </Layout>
-          )}
+            {/* Main App Routes */}
+            <Route path="/*" element={
+              !user ? (
+                <Login onLoginSuccess={setUser} />
+              ) : (
+                <Layout user={user} onLogout={handleLogout} isDarkMode={isDarkMode} toggleTheme={toggleTheme}>
+                  <Routes>
+                    {user.role === UserRole.COACH ? (
+                      <>
+                        <Route path="/" element={<Navigate to="/logger" replace />} />
+                        <Route path="/logger" element={<CoachSessionLogger />} />
+                        <Route path="/alumnos" element={<StudentManager />} />
+                        <Route path="/historial" element={<SessionHistory />} />
+                        <Route path="/rutinas" element={<RoutineManager />} />
+                        <Route path="/ejercicios" element={<ExerciseManager />} />
+                        <Route path="*" element={<Navigate to="/logger" replace />} />
+                      </>
+                    ) : (
+                      <>
+                        <Route path="/" element={<StudentDashboard user={user} />} />
+                        <Route path="/historial" element={<SessionHistory />} />
+                        <Route path="*" element={<Navigate to="/" replace />} />
+                      </>
+                    )}
+                  </Routes>
+                </Layout>
+              )
+            } />
+          </Routes>
         </Router>
       </GymProvider>
       <Toaster />
