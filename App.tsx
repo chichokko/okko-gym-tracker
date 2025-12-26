@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { GymProvider } from './context/GymContext';
 import Layout from './components/Layout';
 import Login from './components/features/auth/Login';
@@ -16,10 +16,12 @@ import { getCurrentSession, signOut } from './services/authService';
 import { Loader2 } from 'lucide-react';
 import { supabase } from './lib/supabaseClient';
 
-const App: React.FC = () => {
+// Inner component to handle routing logic and auth events
+const AppContent: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [loadingSession, setLoadingSession] = useState(true);
+  const navigate = useNavigate();
 
   // Init Dark Mode
   useEffect(() => {
@@ -46,29 +48,33 @@ const App: React.FC = () => {
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'PASSWORD_RECOVERY') {
         // User clicked password reset or invite link
-        // They are now signed in with a temporary session (usually)
-        // We should redirect them to Update Password page
-        // Since we are outside Router at this point (in useEffect), we can rely on Conditional Rendering 
-        // OR finding a way to navigate. 
-        // But 'user' state might be set differently. 
-        // Simpler: if we detect this event, we set a flag 'isRecovery' or just ensure /update-password is accessible.
-        // window.location.hash = '/update-password'; // Hacky but works if Router picks it up? No, BrowserRouter.
-        // Instead, we can just let Router handle it if we add a Route.
-        // But we need to NAVIGATE there.
-        window.location.href = '/update-password';
+        // They are now signed in with a temporary session
+        // We redirect them to Update Password page using navigate (client-side)
+        navigate('/update-password');
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null);
+        navigate('/');
+      } else if (event === 'SIGNED_IN' && session) {
+        // Optionally update user state if needed, but manual login handles this.
+        // However, for invite links that result in SIGNED_IN without PASSWORD_RECOVERY
+        // we might want to check checks.
+        // For now, rely on PASSWORD_RECOVERY for the explicit redirect.
+        const currentUser = await getCurrentSession();
+        if (currentUser) setUser(currentUser);
       }
     });
 
     return () => {
       authListener.subscription.unsubscribe();
     };
-  }, []);
+  }, [navigate]);
 
   const toggleTheme = () => setIsDarkMode(!isDarkMode);
 
   const handleLogout = async () => {
     await signOut();
     setUser(null);
+    navigate('/');
   };
 
   if (loadingSession) {
@@ -79,54 +85,51 @@ const App: React.FC = () => {
     );
   }
 
-  // Handle case where user is accessing update-password but might not be fully logged in (or is via recovery link)
-  // We need to allow access to /update-password even if user is null? 
-  // Actually, PASSWORD_RECOVERY event signs them in. So user will be populated eventually.
-  // But strictly, we should have a Route for it. 
-
-  // Check if current path is update-password
-  const isUpdatePassword = window.location.pathname === '/update-password';
-
-  if (!user && !isUpdatePassword) {
+  // Allow access to Login if not authenticated
+  if (!user) {
     return <Login onLoginSuccess={setUser} />;
   }
+
+  // Authenticated Routes
+  return (
+    <Routes>
+      {/* Update Password - Accessible to any authenticated user */}
+      <Route path="/update-password" element={<UpdatePassword />} />
+
+      {/* Main App Routes - Wrapped in Layout */}
+      <Route path="/*" element={
+        <Layout user={user} onLogout={handleLogout} isDarkMode={isDarkMode} toggleTheme={toggleTheme}>
+          <Routes>
+            {user.role === UserRole.COACH ? (
+              <>
+                <Route path="/" element={<Navigate to="/logger" replace />} />
+                <Route path="/logger" element={<CoachSessionLogger />} />
+                <Route path="/alumnos" element={<StudentManager />} />
+                <Route path="/historial" element={<SessionHistory />} />
+                <Route path="/rutinas" element={<RoutineManager />} />
+                <Route path="/ejercicios" element={<ExerciseManager />} />
+                <Route path="*" element={<Navigate to="/logger" replace />} />
+              </>
+            ) : (
+              <>
+                <Route path="/" element={<StudentDashboard user={user} />} />
+                <Route path="/historial" element={<SessionHistory />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </>
+            )}
+          </Routes>
+        </Layout>
+      } />
+    </Routes>
+  );
+};
+
+const App: React.FC = () => {
   return (
     <>
       <GymProvider>
         <Router>
-          <Routes>
-            {/* Public/Auth Routes */}
-            <Route path="/update-password" element={<UpdatePassword />} />
-
-            {/* Main App Routes */}
-            <Route path="/*" element={
-              !user ? (
-                <Login onLoginSuccess={setUser} />
-              ) : (
-                <Layout user={user} onLogout={handleLogout} isDarkMode={isDarkMode} toggleTheme={toggleTheme}>
-                  <Routes>
-                    {user.role === UserRole.COACH ? (
-                      <>
-                        <Route path="/" element={<Navigate to="/logger" replace />} />
-                        <Route path="/logger" element={<CoachSessionLogger />} />
-                        <Route path="/alumnos" element={<StudentManager />} />
-                        <Route path="/historial" element={<SessionHistory />} />
-                        <Route path="/rutinas" element={<RoutineManager />} />
-                        <Route path="/ejercicios" element={<ExerciseManager />} />
-                        <Route path="*" element={<Navigate to="/logger" replace />} />
-                      </>
-                    ) : (
-                      <>
-                        <Route path="/" element={<StudentDashboard user={user} />} />
-                        <Route path="/historial" element={<SessionHistory />} />
-                        <Route path="*" element={<Navigate to="/" replace />} />
-                      </>
-                    )}
-                  </Routes>
-                </Layout>
-              )
-            } />
-          </Routes>
+          <AppContent />
         </Router>
       </GymProvider>
       <Toaster />

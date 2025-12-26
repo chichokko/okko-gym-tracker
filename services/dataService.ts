@@ -344,8 +344,8 @@ export interface CompletedSession {
   }[];
 }
 
-export const getCompletedSessions = async (): Promise<CompletedSession[]> => {
-  const { data, error } = await supabase
+export const getCompletedSessions = async (studentId?: string): Promise<CompletedSession[]> => {
+  let query = supabase
     .from('sesion')
     .select(`
       id,
@@ -361,6 +361,12 @@ export const getCompletedSessions = async (): Promise<CompletedSession[]> => {
     `)
     .eq('activo', false)
     .order('fecha', { ascending: false });
+
+  if (studentId) {
+    query = query.eq('alumno_id', studentId);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     console.error("Error fetching completed sessions:", error);
