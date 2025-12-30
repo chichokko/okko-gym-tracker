@@ -4,8 +4,9 @@ import { Card, Badge, LoadingOverlay, EmptyState, Select } from '../../ui';
 import { Calendar, TrendingUp, Dumbbell, Activity, Trophy } from 'lucide-react';
 import * as DataService from '../../../services/dataService';
 import { processStats, getExerciseProgress, getTopExercises, StudentStats } from '../../../utils/gymMetrics';
+import { SafeChart } from './SafeChart';
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   LineChart, Line, ScatterChart, Scatter, ZAxis
 } from 'recharts';
 
@@ -148,50 +149,47 @@ const StudentDashboard: React.FC<{ user: User }> = ({ user }) => {
           </div>
         </div>
 
-        <Card className="p-4 md:p-6 min-h-[300px]">
-          {/* Dynamic Chart Rendering */}
-          <div className="h-64 w-full min-h-[250px]">
-            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-              {chartMode === '1rm' ? (
-                <AreaChart data={chartData}>
-                  <defs>
-                    <linearGradient id="colorRm" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.3} />
-                  <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} />
-                  <YAxis hide domain={['dataMin - 5', 'dataMax + 5']} />
-                  <Tooltip
-                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                    labelStyle={{ color: '#64748b', fontSize: '12px' }}
-                  />
-                  <Area type="monotone" dataKey="rm" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorRm)" name="1RM Estimado (kg)" />
-                </AreaChart>
-              ) : chartMode === 'volume' ? (
-                <LineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.3} />
-                  <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} />
-                  <YAxis hide />
-                  <Tooltip
-                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                    labelStyle={{ color: '#64748b', fontSize: '12px' }}
-                  />
-                  <Line type="monotone" dataKey="volume" stroke="#22c55e" strokeWidth={3} dot={{ r: 4, fill: '#22c55e' }} name="Volumen Total (kg)" />
-                </LineChart>
-              ) : (
-                <ScatterChart>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.3} />
-                  <XAxis dataKey="date" type="category" tickLine={false} axisLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} allowDuplicatedCategory={false} />
-                  <YAxis type="number" dataKey="rpe" name="RPE" unit="" domain={[0, 10]} hide />
-                  <ZAxis type="number" range={[100, 300]} />
-                  <Tooltip cursor={{ strokeDasharray: '3 3' }} contentStyle={{ borderRadius: '8px', border: 'none' }} />
-                  <Scatter name="RPE" data={chartData} fill="#f97316" shape="circle" />
-                </ScatterChart>
-              )}
-            </ResponsiveContainer>
-          </div>
+        <Card className="p-4 md:p-6">
+          <SafeChart height={300}>
+            {chartMode === '1rm' ? (
+              <AreaChart data={chartData}>
+                <defs>
+                  <linearGradient id="colorRm" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.3} />
+                <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} />
+                <YAxis hide domain={['dataMin - 5', 'dataMax + 5']} />
+                <Tooltip
+                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                  labelStyle={{ color: '#64748b', fontSize: '12px' }}
+                />
+                <Area type="monotone" dataKey="rm" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorRm)" name="1RM Estimado (kg)" />
+              </AreaChart>
+            ) : chartMode === 'volume' ? (
+              <LineChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.3} />
+                <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} />
+                <YAxis hide />
+                <Tooltip
+                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                  labelStyle={{ color: '#64748b', fontSize: '12px' }}
+                />
+                <Line type="monotone" dataKey="volume" stroke="#22c55e" strokeWidth={3} dot={{ r: 4, fill: '#22c55e' }} name="Volumen Total (kg)" />
+              </LineChart>
+            ) : (
+              <ScatterChart>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.3} />
+                <XAxis dataKey="date" type="category" tickLine={false} axisLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} allowDuplicatedCategory={false} />
+                <YAxis type="number" dataKey="rpe" name="RPE" unit="" domain={[0, 10]} hide />
+                <ZAxis type="number" range={[100, 300]} />
+                <Tooltip cursor={{ strokeDasharray: '3 3' }} contentStyle={{ borderRadius: '8px', border: 'none' }} />
+                <Scatter name="RPE" data={chartData} fill="#f97316" shape="circle" />
+              </ScatterChart>
+            )}
+          </SafeChart>
         </Card>
       </div>
 

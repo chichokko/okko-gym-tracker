@@ -78,6 +78,8 @@ const AppContent: React.FC = () => {
     } catch (error) {
       console.error("Logout error (forcing local cleanup):", error);
     } finally {
+      // FORCE CLEANUP: Remove potentially corrupted tokens from local storage
+      localStorage.clear();
       setUser(null);
       navigate('/');
     }
