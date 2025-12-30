@@ -46,22 +46,41 @@ export const signOut = async () => {
 };
 
 export const getCurrentSession = async (): Promise<User | null> => {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session?.user) return null;
+  try {
+    const { data: { session }, error } = await supabase.auth.getSession();
 
-  // Fetch profile again
-  const { data: profileData } = await supabase
+    // If there's an auth error or no session, return null
+    if (error) {
+      console.warn('Session check failed:', error.message);
+      // If it's a refresh token error, the session is corrupted
+      if (error.message?.includes('Refresh Token') || error.message?.includes('refresh_token')) {
+        console.warn('Refresh token invalid, session will be cleared');
+      }
+      return null;
+    }
+
+    if (!session?.user) return null;
+
+    // Fetch profile
+    const { data: profileData, error: profileError } = await supabase
       .from('persona')
       .select('*')
       .eq('user_id', session.user.id)
       .single();
 
-  if (!profileData) return null;
+    if (profileError || !profileData) {
+      console.warn('Profile fetch failed:', profileError?.message);
+      return null;
+    }
 
-  return {
+    return {
       id: profileData.id,
       name: `${profileData.nombre} ${profileData.apellido}`,
       email: profileData.email,
       role: profileData.rol === 'coach' ? UserRole.COACH : UserRole.STUDENT,
-  };
+    };
+  } catch (err: any) {
+    console.error('Unexpected error in getCurrentSession:', err);
+    return null;
+  }
 };

@@ -27,4 +27,27 @@ const supabaseKey = getEnvVar('VITE_SUPABASE_ANON_KEY') || 'sb_publishable_kUm44
 const finalUrl = supabaseUrl || 'https://placeholder.supabase.co';
 const finalKey = supabaseKey || 'placeholder-key';
 
-export const supabase = createClient(finalUrl, finalKey);
+export const supabase = createClient(finalUrl, finalKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+    // Use localStorage with a specific key for easier debugging
+    storageKey: 'okko-gym-auth',
+  }
+});
+
+// Helper to clear auth state when tokens are corrupted
+export const clearAuthState = () => {
+  try {
+    // Clear Supabase auth tokens
+    const keys = Object.keys(localStorage);
+    keys.forEach(key => {
+      if (key.startsWith('sb-') || key.startsWith('okko-gym-auth')) {
+        localStorage.removeItem(key);
+      }
+    });
+  } catch (e) {
+    console.error('Error clearing auth state:', e);
+  }
+};

@@ -15,7 +15,7 @@ import { Toaster } from './components/ui';
 import { User, UserRole } from './types';
 import { getCurrentSession, signOut } from './services/authService';
 import { Loader2 } from 'lucide-react';
-import { supabase } from './lib/supabaseClient';
+import { supabase, clearAuthState } from './lib/supabaseClient';
 
 // Inner component to handle routing logic and auth events
 const AppContent: React.FC = () => {
@@ -35,12 +35,30 @@ const AppContent: React.FC = () => {
 
   // Check Auth Session on Mount & Listen for Events
   useEffect(() => {
+    let isMounted = true;
+
     const initSession = async () => {
-      const currentUser = await getCurrentSession();
-      if (currentUser) {
-        setUser(currentUser);
+      try {
+        // Add timeout to prevent infinite loading
+        const timeoutPromise = new Promise<null>((_, reject) =>
+          setTimeout(() => reject(new Error('Session init timeout')), 10000)
+        );
+
+        const sessionPromise = getCurrentSession();
+
+        const currentUser = await Promise.race([sessionPromise, timeoutPromise]);
+
+        if (isMounted && currentUser) {
+          setUser(currentUser);
+        }
+      } catch (error) {
+        console.warn('Session initialization failed:', error);
+        // On error, just show login screen
+      } finally {
+        if (isMounted) {
+          setLoadingSession(false);
+        }
       }
-      setLoadingSession(false);
     };
 
     initSession();
@@ -66,6 +84,7 @@ const AppContent: React.FC = () => {
     });
 
     return () => {
+      isMounted = false;
       authListener.subscription.unsubscribe();
     };
   }, [navigate]);
@@ -78,8 +97,8 @@ const AppContent: React.FC = () => {
     } catch (error) {
       console.error("Logout error (forcing local cleanup):", error);
     } finally {
-      // FORCE CLEANUP: Remove potentially corrupted tokens from local storage
-      localStorage.clear();
+      // Clear Supabase auth tokens (selective, not all localStorage)
+      clearAuthState();
       setUser(null);
       navigate('/');
     }
