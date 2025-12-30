@@ -123,7 +123,7 @@ const ExerciseManager: React.FC = () => {
             )}
 
             {/* Search Bar */}
-            <div className="relative">
+            <div className="relative max-w-sm">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                 <Input
                     className="pl-10"

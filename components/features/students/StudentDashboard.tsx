@@ -150,8 +150,8 @@ const StudentDashboard: React.FC<{ user: User }> = ({ user }) => {
 
         <Card className="p-4 md:p-6 min-h-[300px]">
           {/* Dynamic Chart Rendering */}
-          <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-64 w-full min-h-[250px]">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
               {chartMode === '1rm' ? (
                 <AreaChart data={chartData}>
                   <defs>
@@ -205,13 +205,25 @@ const StudentDashboard: React.FC<{ user: User }> = ({ user }) => {
           {/* Simple Grid Heatmap */}
           <div className="flex flex-wrap gap-1">
             {Array.from({ length: 90 }).map((_, i) => {
-              // Mock heatmap calculation - in real app, map dates to indices
-              const date = new Date();
-              date.setDate(date.getDate() - (89 - i));
-              const dateStr = date.toISOString().split('T')[0];
+              // Calculate date based on offset from today (90 days ago to today)
+              const d = new Date();
+              d.setDate(d.getDate() - (89 - i)); // 89 days ago ... to 0 days ago (today)
 
-              // Check if any session exists on this date
-              const hasSession = sessions.some(s => s.date.toISOString().split('T')[0] === dateStr);
+              // Format as YYYY-MM-DD using local time components to avoid UTC shift
+              const year = d.getFullYear();
+              const month = String(d.getMonth() + 1).padStart(2, '0');
+              const day = String(d.getDate()).padStart(2, '0');
+              const dateStr = `${year}-${month}-${day}`;
+
+              // Check if any session exists on this date (comparing vs session local date string)
+              const hasSession = sessions.some(s => {
+                const sDate = new Date(s.date);
+                const sYear = sDate.getFullYear();
+                const sMonth = String(sDate.getMonth() + 1).padStart(2, '0');
+                const sDay = String(sDate.getDate()).padStart(2, '0');
+                const sDateStr = `${sYear}-${sMonth}-${sDay}`;
+                return sDateStr === dateStr;
+              });
 
               return (
                 <div

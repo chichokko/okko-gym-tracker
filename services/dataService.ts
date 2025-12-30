@@ -64,23 +64,38 @@ export const getExercises = async (): Promise<Exercise[]> => {
 };
 
 export const saveExercise = async (exercise: Partial<Exercise>): Promise<boolean> => {
-  const payload: any = {
-    nombre: exercise.name,
-    grupo_muscular: exercise.muscleGroup
-  };
+  try {
+    // 1. Obtener usuario actual para asignar creador
+    const { data: { user } } = await supabase.auth.getUser();
+    let creadorId = null;
 
-  // Only include ID if it's an update (Supabase upsert handles this, but good practice)
-  if (exercise.id) payload.id = exercise.id;
+    if (user) {
+      const { data: persona } = await supabase.from('persona').select('id').eq('user_id', user.id).single();
+      if (persona) creadorId = persona.id;
+    }
 
-  const { error } = await supabase
-    .from('ejercicio')
-    .upsert(payload);
+    const payload: any = {
+      nombre: exercise.name,
+      grupo_muscular: exercise.muscleGroup,
+      creador_id: creadorId // Asignar creador para que RLS permita verlo
+    };
 
-  if (error) {
-    console.error('Error saving exercise:', error);
+    // Only include ID if it's an update
+    if (exercise.id) payload.id = exercise.id;
+
+    const { error } = await supabase
+      .from('ejercicio')
+      .upsert(payload);
+
+    if (error) {
+      console.error('Error saving exercise:', error);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error("Error saving exercise logic:", error);
     return false;
   }
-  return true;
 };
 
 export const deleteExercise = async (id: string): Promise<boolean> => {
@@ -284,47 +299,79 @@ export const saveSession = async (session: Session) => {
       activo: session.active, // Importante: Guardar estado activo. TRUE = En curso, FALSE = Historial.
     };
 
-    const { data: sesionData, error: sesionError } = await supabase
+    // PRIMERO: Intentar Insert/Upsert sin Select para evitar bloqueo RLS en el retorno
+    const { data: insertedData, error: insertError } = await supabase
       .from('sesion')
       .upsert(sessionPayload)
-      .select()
+      .select('id') // Solo pedimos ID para minimizar riesgo de RLS en otras columnas (aunque select * es lo tipico)
       .single();
 
-    if (sesionError) throw sesionError;
+    // Si falla el insert, es un error fatal.
+    if (insertError) {
+      console.error("Fatal Error saving session (Insert):", insertError);
+      throw insertError;
+    }
+
+    // Si pasamos aqui, la sesión EXISTE en DB.
+    const sessionId = insertedData.id;
 
     // 3. Insertar detalles (Logs)
-    // Estrategia: Borrar detalles anteriores de esta sesión y reinsertar para mantener consistencia
-    // Esto simplifica la lógica de actualizaciones de sets (borrar sets, añadir nuevos)
-    if (sesionData.id) {
-      await supabase.from('detalle_sesion').delete().eq('sesion_id', sesionData.id);
-    }
+    if (sessionId) {
+      // Limpiar detalles viejos
+      const { error: deleteError } = await supabase.from('detalle_sesion').delete().eq('sesion_id', sessionId);
+      if (deleteError) console.warn("Warning clearing old details:", deleteError);
 
-    const logsToInsert: any[] = [];
-
-    session.exercises.forEach(ex => {
-      ex.sets.forEach((set, index) => {
-        logsToInsert.push({
-          sesion_id: sesionData.id,
-          ejercicio_id: ex.exercise.id,
-          nro_serie: index + 1,
-          peso_kg: set.weight,
-          reps_reales: set.reps,
-          rpe: set.rpe
+      const logsToInsert: any[] = [];
+      session.exercises.forEach(ex => {
+        ex.sets.forEach((set, index) => {
+          logsToInsert.push({
+            sesion_id: sessionId,
+            ejercicio_id: ex.exercise.id,
+            nro_serie: index + 1,
+            peso_kg: set.weight > 0 ? set.weight : null,
+            reps_reales: set.reps > 0 ? set.reps : null,
+            rpe: (set.rpe > 0 && set.rpe <= 10) ? set.rpe : null
+          });
         });
       });
-    });
 
-    if (logsToInsert.length > 0) {
-      const { error: detailError } = await supabase
-        .from('detalle_sesion')
-        .insert(logsToInsert);
+      if (logsToInsert.length > 0) {
+        const { error: detailError } = await supabase
+          .from('detalle_sesion')
+          .insert(logsToInsert);
 
-      if (detailError) throw detailError;
+        if (detailError) {
+          console.error("Error inserting details:", detailError);
+          // No hacemos throw aqui para no "cancelar" la sesión padre, pero avisamos.
+          throw detailError;
+        }
+      }
     }
 
-    return sesionData;
+    // 4. Retornar los datos completos (Re-fetch seguro)
+    // Intentamos recuperar la sesión completa para la UI. Si esto falla por RLS, no rompemos el flujo, devolvemos lo que tenemos.
+    const { data: finalSession, error: fetchError } = await supabase
+      .from('sesion')
+      .select(`
+        *,
+        persona!alumno_id (*),
+        detalle_sesion (
+          *,
+          ejercicio (*)
+        )
+      `)
+      .eq('id', sessionId)
+      .single();
+
+    if (fetchError) {
+      console.warn("Session saved due RLS prevented fetching result (Blind Save):", fetchError);
+      // Retornamos un objeto "fake" con el ID real para que la UI sepa que se guardó
+      return { ...sessionPayload, id: sessionId } as any;
+    }
+
+    return finalSession;
   } catch (error) {
-    console.error("Error saving session:", error);
+    console.error("Error saving session chain:", error);
     throw error;
   }
 };

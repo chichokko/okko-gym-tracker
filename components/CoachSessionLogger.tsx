@@ -10,7 +10,7 @@ import { User } from '../types';
 
 const CoachSessionLogger: React.FC = () => {
     // Context Data
-    const { students, routines, exercises, isLoading: isGlobalLoading } = useGymData();
+    const { students, routines, exercises, isLoading: isGlobalLoading, refreshExercises } = useGymData();
 
     // View state
     const [viewMode, setViewMode] = useState<'DASHBOARD' | 'SETUP' | 'FOCUS'>('DASHBOARD');
@@ -54,43 +54,45 @@ const CoachSessionLogger: React.FC = () => {
 
     // Start new session
     const handleStartSession = async (studentId: string, routineId: string) => {
-        const student = students.find(s => s.id === studentId);
-        const routine = routines.find(r => r.id === routineId);
-        if (!student) return;
-
         setIsLoadingSessions(true);
-
-        // Build initial exercises from routine
-        const initialExercises: import('../types').SessionExercise[] = routine
-            ? routine.exercises.map(re => {
-                const baseEx = exercises.find(e => e.id === re.exerciseId);
-                if (!baseEx) return null;
-                return {
-                    id: generateId(),
-                    exercise: baseEx,
-                    sets: Array.from({ length: re.sets }).map(() => ({
-                        id: generateId(),
-                        weight: 0,
-                        reps: 0,
-                        rpe: 0,
-                        completedAt: new Date()
-                    })),
-                    notes: `Objetivo: ${re.sets} series x ${re.reps}`
-                };
-            }).filter(Boolean) as import('../types').SessionExercise[]
-            : [];
-
-        const newSession: ActiveSession = {
-            internalId: 'temp-' + generateId(),
-            student,
-            routineName: routine?.name || 'Entrenamiento Libre',
-            startTime: new Date(),
-            exercises: initialExercises,
-            activeExerciseId: initialExercises[0]?.id || null,
-            isDbPersisted: false
-        };
-
         try {
+            // Force refresh exercises to avoid RLS stale data issues (Old exercises missing)
+            await refreshExercises();
+
+            const student = students.find(s => s.id === studentId);
+            const routine = routines.find(r => r.id === routineId);
+            if (!student) throw new Error("Student not found");
+
+            // Build initial exercises from routine
+            const initialExercises: import('../types').SessionExercise[] = routine
+                ? routine.exercises.map(re => {
+                    const baseEx = exercises.find(e => e.id === re.exerciseId);
+                    if (!baseEx) return null;
+                    return {
+                        id: generateId(),
+                        exercise: baseEx,
+                        sets: Array.from({ length: re.sets }).map(() => ({
+                            id: generateId(),
+                            weight: 0,
+                            reps: 0,
+                            rpe: 0,
+                            completedAt: new Date()
+                        })),
+                        notes: `Objetivo: ${re.sets} series x ${re.reps}`
+                    };
+                }).filter(Boolean) as import('../types').SessionExercise[]
+                : [];
+
+            const newSession: ActiveSession = {
+                internalId: 'temp-' + generateId(),
+                student,
+                routineName: routine?.name || 'Entrenamiento Libre',
+                startTime: new Date(),
+                exercises: initialExercises,
+                activeExerciseId: initialExercises[0]?.id || null,
+                isDbPersisted: false
+            };
+
             const saved = await DataService.saveSession({
                 id: '',
                 studentId: student.id,
@@ -107,12 +109,13 @@ const CoachSessionLogger: React.FC = () => {
 
             setActiveSessions(prev => [...prev, newSession]);
             toast.success(`Sesión iniciada para ${student.name}`);
+            setViewMode('DASHBOARD');
+
         } catch (error) {
             toast.error('Error al crear sesión');
             console.error(error);
         } finally {
             setIsLoadingSessions(false);
-            setViewMode('DASHBOARD');
         }
     };
 

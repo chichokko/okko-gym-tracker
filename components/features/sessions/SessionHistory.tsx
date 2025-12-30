@@ -16,7 +16,11 @@ import {
 import * as DataService from '../../../services/dataService';
 import type { CompletedSession } from '../../../services/dataService';
 
-const SessionHistory: React.FC = () => {
+interface SessionHistoryProps {
+    studentId?: string; // If provided, filters by specific student (Student View). If null, shows all (Coach View)
+}
+
+const SessionHistory: React.FC<SessionHistoryProps> = ({ studentId }) => {
     const [sessions, setSessions] = useState<CompletedSession[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -24,13 +28,19 @@ const SessionHistory: React.FC = () => {
 
     useEffect(() => {
         loadSessions();
-    }, []);
+    }, [studentId]); // Reload if ID changes
 
     const loadSessions = async () => {
         setIsLoading(true);
-        const data = await DataService.getCompletedSessions();
-        setSessions(data);
-        setIsLoading(false);
+        try {
+            const data = await DataService.getCompletedSessions(studentId);
+            setSessions(data);
+        } catch (error) {
+            console.error("Error loading session history:", error);
+            // toast.error("Error al cargar historial"); // Optional: avoid spamming toast on mount if frequent
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const filteredSessions = sessions.filter(s =>

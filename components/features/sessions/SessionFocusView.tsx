@@ -113,7 +113,7 @@ const SessionFocusView: React.FC<SessionFocusViewProps> = ({
                 </div>
                 <div className="flex gap-2">
                     <Button variant="secondary" className="h-9 px-3 text-xs" onClick={onSaveProgress} disabled={isLoading}>
-                        <Cloud size={16} /> <span className="hidden sm:inline">Guardar</span>
+                        <RotateCcw size={14} className={`mr-2 ${isLoading ? 'animate-spin' : ''}`} /> Sincronizar
                     </Button>
                     <Button variant="danger" className="h-9 px-3 text-xs" onClick={onFinishSession} disabled={isLoading}>
                         Terminar
@@ -130,8 +130,8 @@ const SessionFocusView: React.FC<SessionFocusViewProps> = ({
                             key={ex.id}
                             onClick={() => setActiveExercise(ex.id)}
                             className={`p-3 rounded-lg cursor-pointer border flex justify-between items-center ${session.activeExerciseId === ex.id
-                                    ? 'bg-white dark:bg-slate-800 border-blue-500 shadow-sm'
-                                    : 'border-transparent hover:bg-white dark:hover:bg-slate-800'
+                                ? 'bg-white dark:bg-slate-800 border-blue-500 shadow-sm'
+                                : 'border-transparent hover:bg-white dark:hover:bg-slate-800'
                                 }`}
                         >
                             <div>

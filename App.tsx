@@ -10,6 +10,7 @@ import RoutineManager from './components/features/routines/RoutineManager';
 import ExerciseManager from './components/features/routines/ExerciseManager';
 import SessionHistory from './components/features/sessions/SessionHistory';
 import UpdatePassword from './components/features/auth/UpdatePassword';
+import SessionMonitor from './components/features/auth/SessionMonitor';
 import { Toaster } from './components/ui';
 import { User, UserRole } from './types';
 import { getCurrentSession, signOut } from './services/authService';
@@ -72,9 +73,14 @@ const AppContent: React.FC = () => {
   const toggleTheme = () => setIsDarkMode(!isDarkMode);
 
   const handleLogout = async () => {
-    await signOut();
-    setUser(null);
-    navigate('/');
+    try {
+      await signOut();
+    } catch (error) {
+      console.error("Logout error (forcing local cleanup):", error);
+    } finally {
+      setUser(null);
+      navigate('/');
+    }
   };
 
   if (loadingSession) {
@@ -92,35 +98,38 @@ const AppContent: React.FC = () => {
 
   // Authenticated Routes
   return (
-    <Routes>
-      {/* Update Password - Accessible to any authenticated user */}
-      <Route path="/update-password" element={<UpdatePassword />} />
+    <>
+      <SessionMonitor onLogout={handleLogout} />
+      <Routes>
+        {/* Update Password - Accessible to any authenticated user */}
+        <Route path="/update-password" element={<UpdatePassword />} />
 
-      {/* Main App Routes - Wrapped in Layout */}
-      <Route path="/*" element={
-        <Layout user={user} onLogout={handleLogout} isDarkMode={isDarkMode} toggleTheme={toggleTheme}>
-          <Routes>
-            {user.role === UserRole.COACH ? (
-              <>
-                <Route path="/" element={<Navigate to="/logger" replace />} />
-                <Route path="/logger" element={<CoachSessionLogger />} />
-                <Route path="/alumnos" element={<StudentManager />} />
-                <Route path="/historial" element={<SessionHistory />} />
-                <Route path="/rutinas" element={<RoutineManager />} />
-                <Route path="/ejercicios" element={<ExerciseManager />} />
-                <Route path="*" element={<Navigate to="/logger" replace />} />
-              </>
-            ) : (
-              <>
-                <Route path="/" element={<StudentDashboard user={user} />} />
-                <Route path="/historial" element={<SessionHistory />} />
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </>
-            )}
-          </Routes>
-        </Layout>
-      } />
-    </Routes>
+        {/* Main App Routes - Wrapped in Layout */}
+        <Route path="/*" element={
+          <Layout user={user} onLogout={handleLogout} isDarkMode={isDarkMode} toggleTheme={toggleTheme}>
+            <Routes>
+              {user.role === UserRole.COACH ? (
+                <>
+                  <Route path="/" element={<Navigate to="/logger" replace />} />
+                  <Route path="/logger" element={<CoachSessionLogger />} />
+                  <Route path="/alumnos" element={<StudentManager />} />
+                  <Route path="/historial" element={<SessionHistory />} />
+                  <Route path="/rutinas" element={<RoutineManager />} />
+                  <Route path="/ejercicios" element={<ExerciseManager />} />
+                  <Route path="*" element={<Navigate to="/logger" replace />} />
+                </>
+              ) : (
+                <>
+                  <Route path="/" element={<StudentDashboard user={user} />} />
+                  <Route path="/historial" element={<SessionHistory studentId={user.id} />} />
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </>
+              )}
+            </Routes>
+          </Layout>
+        } />
+      </Routes>
+    </>
   );
 };
 
