@@ -40,13 +40,26 @@ export const supabase = createClient(finalUrl, finalKey, {
 // Helper to clear auth state when tokens are corrupted
 export const clearAuthState = () => {
   try {
-    // Clear Supabase auth tokens
-    const keys = Object.keys(localStorage);
-    keys.forEach(key => {
-      if (key.startsWith('sb-') || key.startsWith('okko-gym-auth')) {
+    // 1. Limpiar LocalStorage (usando tu key específica)
+    localStorage.removeItem('okko-gym-auth');
+
+    // 2. Limpiar cualquier otra llave residual de supabase
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith('sb-')) {
         localStorage.removeItem(key);
       }
     });
+
+    // 3. Limpiar Cookies de Supabase (Paso vital para romper el loop)
+    document.cookie.split(";").forEach((c) => {
+      if (c.trim().startsWith("sb-") || c.trim().startsWith("okko-gym-auth")) {
+        document.cookie = c
+          .replace(/^ +/, "")
+          .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+      }
+    });
+
+    console.log('Estado de auth de OKKO limpiado profundamente');
   } catch (e) {
     console.error('Error clearing auth state:', e);
   }
