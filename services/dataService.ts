@@ -21,8 +21,8 @@ const handleAuthError = async (error: any) => {
     console.warn('Auth error detected in DataService, forcing logout...');
     // Force local logout to trigger UI redirect via onAuthStateChange
     await supabase.auth.signOut({ scope: 'local' });
-    // Reload page as last resort to clear partial states
-    window.location.href = '/';
+    // Do NOT reload page forces infinite loop if the error persists on load
+    // window.location.href = '/'; 
   }
 };
 

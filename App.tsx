@@ -100,7 +100,7 @@ const AppContent: React.FC = () => {
 
   // Authenticated Routes
   return (
-    <>
+    <GymProvider>
       <Routes>
         {/* Update Password - Accessible to any authenticated user */}
         <Route path="/update-password" element={<UpdatePassword />} />
@@ -130,18 +130,16 @@ const AppContent: React.FC = () => {
           </Layout>
         } />
       </Routes>
-    </>
+    </GymProvider>
   );
 };
 
 const App: React.FC = () => {
   return (
     <>
-      <GymProvider>
-        <Router>
-          <AppContent />
-        </Router>
-      </GymProvider>
+      <Router>
+        <AppContent />
+      </Router>
       <Toaster />
     </>
   );
