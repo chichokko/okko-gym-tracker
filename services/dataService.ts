@@ -3,6 +3,29 @@ import { User, Routine, Exercise, Session, SessionExercise, SetLog, UserRole } f
 
 // --- USUARIOS (PERSONA) ---
 
+// Helper to handle auth errors globally
+const handleAuthError = async (error: any) => {
+  if (!error) return;
+  console.error('DataService Error:', error);
+
+  // Check for JWT expiry or invalid token messages
+  const msg = error.message?.toLowerCase() || '';
+  if (
+    msg.includes('jwt') ||
+    msg.includes('token') ||
+    msg.includes('auth') ||
+    error.code === 'PGRST301' || // 401 Unauthorized
+    error.status === 401 ||
+    error.status === 403
+  ) {
+    console.warn('Auth error detected in DataService, forcing logout...');
+    // Force local logout to trigger UI redirect via onAuthStateChange
+    await supabase.auth.signOut({ scope: 'local' });
+    // Reload page as last resort to clear partial states
+    window.location.href = '/';
+  }
+};
+
 export const getStudents = async (): Promise<User[]> => {
   const { data, error } = await supabase
     .from('persona')
@@ -10,7 +33,7 @@ export const getStudents = async (): Promise<User[]> => {
     .eq('rol', 'alumno');
 
   if (error) {
-    console.error('Error fetching students:', error);
+    await handleAuthError(error);
     return [];
   }
 
@@ -37,7 +60,7 @@ export const createStudent = async (student: Partial<User> & { firstName: string
     .single();
 
   if (error) {
-    console.error('Error creating student:', error);
+    await handleAuthError(error);
     return null;
   }
 
@@ -53,7 +76,10 @@ export const createStudent = async (student: Partial<User> & { firstName: string
 
 export const getExercises = async (): Promise<Exercise[]> => {
   const { data, error } = await supabase.from('ejercicio').select('*');
-  if (error) return [];
+  if (error) {
+    await handleAuthError(error);
+    return [];
+  }
 
   return data.map((e: any) => ({
     id: e.id,
@@ -88,7 +114,7 @@ export const saveExercise = async (exercise: Partial<Exercise>): Promise<boolean
       .upsert(payload);
 
     if (error) {
-      console.error('Error saving exercise:', error);
+      await handleAuthError(error);
       return false;
     }
     return true;
@@ -105,7 +131,7 @@ export const deleteExercise = async (id: string): Promise<boolean> => {
     .eq('id', id);
 
   if (error) {
-    console.error('Error deleting exercise:', error);
+    await handleAuthError(error);
     return false;
   }
   return true;
@@ -128,7 +154,7 @@ export const getRoutines = async (): Promise<Routine[]> => {
     `);
 
   if (error) {
-    console.error(error);
+    await handleAuthError(error);
     return [];
   }
 
@@ -204,7 +230,7 @@ export const saveRoutine = async (routine: Routine): Promise<boolean> => {
 
     return true;
   } catch (error) {
-    console.error("Error saving routine:", error);
+    await handleAuthError(error);
     return false;
   }
 };
@@ -226,7 +252,7 @@ export const getActiveSessions = async (): Promise<Session[]> => {
     .order('fecha', { ascending: false });
 
   if (error) {
-    console.error("Error fetching active sessions:", error);
+    await handleAuthError(error);
     return [];
   }
 
@@ -371,7 +397,7 @@ export const saveSession = async (session: Session) => {
 
     return finalSession;
   } catch (error) {
-    console.error("Error saving session chain:", error);
+    await handleAuthError(error);
     throw error;
   }
 };
@@ -416,7 +442,7 @@ export const getCompletedSessions = async (studentId?: string): Promise<Complete
   const { data, error } = await query;
 
   if (error) {
-    console.error("Error fetching completed sessions:", error);
+    await handleAuthError(error);
     return [];
   }
 
@@ -459,7 +485,7 @@ export const getCompletedSessions = async (studentId?: string): Promise<Complete
 };
 
 // Simulación de carga inicial si no hay backend real conectado aún
-export const mockInitialize = async () => {
-  // Aquí podrías poner lógica para verificar auth
-  return true;
-}
+//export const mockInitialize = async () => {
+// Aquí podrías poner lógica para verificar auth
+//return true;
+//}
