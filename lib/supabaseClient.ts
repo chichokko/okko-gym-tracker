@@ -27,40 +27,5 @@ const supabaseKey = getEnvVar('VITE_SUPABASE_ANON_KEY') || 'sb_publishable_kUm44
 const finalUrl = supabaseUrl || 'https://placeholder.supabase.co';
 const finalKey = supabaseKey || 'placeholder-key';
 
-export const supabase = createClient(finalUrl, finalKey, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true,
-    // Use localStorage with a specific key for easier debugging
-    storageKey: 'okko-gym-auth',
-  }
-});
-
-// Helper to clear auth state when tokens are corrupted
-export const clearAuthState = () => {
-  try {
-    // 1. Limpiar LocalStorage (usando tu key específica)
-    localStorage.removeItem('okko-gym-auth');
-
-    // 2. Limpiar cualquier otra llave residual de supabase
-    Object.keys(localStorage).forEach(key => {
-      if (key.startsWith('sb-')) {
-        localStorage.removeItem(key);
-      }
-    });
-
-    // 3. Limpiar Cookies de Supabase (Paso vital para romper el loop)
-    document.cookie.split(";").forEach((c) => {
-      if (c.trim().startsWith("sb-") || c.trim().startsWith("okko-gym-auth")) {
-        document.cookie = c
-          .replace(/^ +/, "")
-          .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
-      }
-    });
-
-    console.log('Estado de auth de OKKO limpiado profundamente');
-  } catch (e) {
-    console.error('Error clearing auth state:', e);
-  }
-};
+// Simple client initialization - Supabase handles token refresh automatically
+export const supabase = createClient(finalUrl, finalKey);

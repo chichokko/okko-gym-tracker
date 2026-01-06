@@ -10,17 +10,19 @@ import RoutineManager from './components/features/routines/RoutineManager';
 import ExerciseManager from './components/features/routines/ExerciseManager';
 import SessionHistory from './components/features/sessions/SessionHistory';
 import UpdatePassword from './components/features/auth/UpdatePassword';
-import SessionMonitor from './components/features/auth/SessionMonitor';
 import { Toaster } from './components/ui';
 import { User, UserRole } from './types';
 import { getCurrentSession, signOut } from './services/authService';
 import { Loader2 } from 'lucide-react';
-import { supabase, clearAuthState } from './lib/supabaseClient';
+import { supabase } from './lib/supabaseClient';
 
 // Inner component to handle routing logic and auth events
 const AppContent: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    const saved = localStorage.getItem('okko-theme');
+    return saved ? JSON.parse(saved) : false;
+  });
   const [loadingSession, setLoadingSession] = useState(true);
   const navigate = useNavigate();
 
@@ -31,77 +33,49 @@ const AppContent: React.FC = () => {
     } else {
       document.documentElement.classList.remove('dark');
     }
+    localStorage.setItem('okko-theme', JSON.stringify(isDarkMode));
   }, [isDarkMode]);
 
-  // Check Auth Session on Mount & Listen for Events
+  // Main auth state listener - this is the core of auth handling
   useEffect(() => {
-    let isMounted = true;
-
-    const initSession = async () => {
-      try {
-        // Add timeout to prevent infinite loading
-        const timeoutPromise = new Promise<null>((_, reject) =>
-          setTimeout(() => reject(new Error('Session init timeout')), 10000)
-        );
-
-        const sessionPromise = getCurrentSession();
-
-        const currentUser = await Promise.race([sessionPromise, timeoutPromise]);
-
-        if (isMounted && currentUser) {
-          setUser(currentUser);
-        }
-      } catch (error) {
-        console.warn('Session initialization failed:', error);
-        // On error, just show login screen
-      } finally {
-        if (isMounted) {
-          setLoadingSession(false);
-        }
-      }
+    // Get initial session
+    const getInitialSession = async () => {
+      const currentUser = await getCurrentSession();
+      setUser(currentUser);
+      setLoadingSession(false);
     };
 
-    initSession();
+    getInitialSession();
 
-    // Listen for Password Recovery / Invite events
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'PASSWORD_RECOVERY') {
-        // User clicked password reset or invite link
-        // They are now signed in with a temporary session
-        // We redirect them to Update Password page using navigate (client-side)
-        navigate('/update-password');
+    // Listen for auth state changes - Supabase handles token refresh automatically
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth event:', event);
+
+      if (event === 'SIGNED_IN' && session) {
+        const currentUser = await getCurrentSession();
+        setUser(currentUser);
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
         navigate('/');
-      } else if (event === 'SIGNED_IN' && session) {
-        // Optionally update user state if needed, but manual login handles this.
-        // However, for invite links that result in SIGNED_IN without PASSWORD_RECOVERY
-        // we might want to check checks.
-        // For now, rely on PASSWORD_RECOVERY for the explicit redirect.
-        const currentUser = await getCurrentSession();
-        if (currentUser) setUser(currentUser);
+      } else if (event === 'PASSWORD_RECOVERY') {
+        navigate('/update-password');
+      } else if (event === 'TOKEN_REFRESHED') {
+        // Token was refreshed successfully - no action needed
+        console.log('Token refreshed successfully');
       }
     });
 
     return () => {
-      isMounted = false;
-      authListener.subscription.unsubscribe();
+      subscription.unsubscribe();
     };
   }, [navigate]);
 
   const toggleTheme = () => setIsDarkMode(!isDarkMode);
 
   const handleLogout = async () => {
-    try {
-      await signOut();
-    } catch (error) {
-      console.error("Logout error (forcing local cleanup):", error);
-    } finally {
-      // Clear Supabase auth tokens (selective, not all localStorage)
-      clearAuthState();
-      setUser(null);
-      navigate('/');
-    }
+    await signOut();
+    setUser(null);
+    navigate('/');
   };
 
   if (loadingSession) {
@@ -120,7 +94,6 @@ const AppContent: React.FC = () => {
   // Authenticated Routes
   return (
     <>
-      <SessionMonitor onLogout={handleLogout} />
       <Routes>
         {/* Update Password - Accessible to any authenticated user */}
         <Route path="/update-password" element={<UpdatePassword />} />

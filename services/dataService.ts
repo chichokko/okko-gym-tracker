@@ -66,18 +66,18 @@ export const getExercises = async (): Promise<Exercise[]> => {
 export const saveExercise = async (exercise: Partial<Exercise>): Promise<boolean> => {
   try {
     // 1. Obtener usuario actual para asignar creador
-    const { data: { user } } = await supabase.auth.getUser();
-    let creadorId = null;
+    //const { data: { user } } = await supabase.auth.getUser();
+    //let creadorId = null;
 
-    if (user) {
-      const { data: persona } = await supabase.from('persona').select('id').eq('user_id', user.id).single();
-      if (persona) creadorId = persona.id;
-    }
+    //if (user) {
+    //  const { data: persona } = await supabase.from('persona').select('id').eq('user_id', user.id).single();
+    //  if (persona) creadorId = persona.id;
+    //}
 
     const payload: any = {
       nombre: exercise.name,
       grupo_muscular: exercise.muscleGroup,
-      creador_id: creadorId // Asignar creador para que RLS permita verlo
+      //creador_id: creadorId  Asignar creador para que RLS permita verlo
     };
 
     // Only include ID if it's an update

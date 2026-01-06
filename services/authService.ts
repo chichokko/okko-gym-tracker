@@ -41,46 +41,28 @@ export const signInWithEmail = async (email: string, password: string): Promise<
   }
 };
 
+// Use scope: 'local' to only clear local session, not invalidate tokens server-side
 export const signOut = async () => {
-  await supabase.auth.signOut();
+  await supabase.auth.signOut({ scope: 'local' });
 };
 
 export const getCurrentSession = async (): Promise<User | null> => {
-  try {
-    const { data: { session }, error } = await supabase.auth.getSession();
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.user) return null;
 
-    // If there's an auth error or no session, return null
-    if (error) {
-      console.warn('Session check failed:', error.message);
-      // If it's a refresh token error, the session is corrupted
-      if (error.message?.includes('Refresh Token') || error.message?.includes('refresh_token')) {
-        console.warn('Refresh token invalid, session will be cleared');
-      }
-      return null;
-    }
+  // Fetch profile
+  const { data: profileData } = await supabase
+    .from('persona')
+    .select('*')
+    .eq('user_id', session.user.id)
+    .single();
 
-    if (!session?.user) return null;
+  if (!profileData) return null;
 
-    // Fetch profile
-    const { data: profileData, error: profileError } = await supabase
-      .from('persona')
-      .select('*')
-      .eq('user_id', session.user.id)
-      .single();
-
-    if (profileError || !profileData) {
-      console.warn('Profile fetch failed:', profileError?.message);
-      return null;
-    }
-
-    return {
-      id: profileData.id,
-      name: `${profileData.nombre} ${profileData.apellido}`,
-      email: profileData.email,
-      role: profileData.rol === 'coach' ? UserRole.COACH : UserRole.STUDENT,
-    };
-  } catch (err: any) {
-    console.error('Unexpected error in getCurrentSession:', err);
-    return null;
-  }
+  return {
+    id: profileData.id,
+    name: `${profileData.nombre} ${profileData.apellido}`,
+    email: profileData.email,
+    role: profileData.rol === 'coach' ? UserRole.COACH : UserRole.STUDENT,
+  };
 };
