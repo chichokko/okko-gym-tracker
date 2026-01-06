@@ -1,31 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Helper to safely access environment variables in different environments
-const getEnvVar = (key: string) => {
-  try {
-    // Check for Vite's import.meta.env
-    // @ts-ignore
-    if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[key]) {
-      // @ts-ignore
-      return import.meta.env[key];
-    }
-    // Check for standard process.env
-    if (typeof process !== 'undefined' && process.env) {
-      return process.env[key];
-    }
-  } catch (e) {
-    // Ignore errors
-  }
-  return undefined;
-};
 
-// Use fallbacks to prevent "supabaseUrl is required" error during initialization
-const supabaseUrl = getEnvVar('VITE_SUPABASE_URL') || 'https://gbuoyrjleshtoxobufgj.supabase.co';
-const supabaseKey = getEnvVar('VITE_SUPABASE_ANON_KEY') || 'sb_publishable_kUm44h2s_Xqv-34HRDTj-A_9S-8Zskg';
 
-// Ensure a valid string is passed even if everything fails
-const finalUrl = supabaseUrl || 'https://placeholder.supabase.co';
-const finalKey = supabaseKey || 'placeholder-key';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// Simple client initialization - Supabase handles token refresh automatically
-export const supabase = createClient(finalUrl, finalKey);
+if (!supabaseUrl || !supabaseKey) {
+  console.error("Missing Supabase Environment Variables! Check your .env file or Cloudflare Pages configuration.");
+}
+
+// Initialize client with whatever we have - if vars are missing, this might still throw or act erroneously
+// inside Supabase logic, but at least we warned.
+// To be extra safe, we pass empty strings to avoid immediate crash if libs expect string, 
+// though functional methods like getSession will fail gracefully (or returning error) rather than crashing app startup.
+export const supabase = createClient(supabaseUrl || '', supabaseKey || '');

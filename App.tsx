@@ -40,9 +40,16 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     // Get initial session
     const getInitialSession = async () => {
-      const currentUser = await getCurrentSession();
-      setUser(currentUser);
-      setLoadingSession(false);
+      try {
+        const currentUser = await getCurrentSession();
+        setUser(currentUser);
+      } catch (error) {
+        console.error("Failed to restore session:", error);
+        // Ensure we don't leave user in broken state
+        setUser(null);
+      } finally {
+        setLoadingSession(false);
+      }
     };
 
     getInitialSession();

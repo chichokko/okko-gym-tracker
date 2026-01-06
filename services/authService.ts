@@ -47,22 +47,38 @@ export const signOut = async () => {
 };
 
 export const getCurrentSession = async (): Promise<User | null> => {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session?.user) return null;
+  try {
+    const response = await supabase.auth.getSession();
+    const { data, error } = response;
 
-  // Fetch profile
-  const { data: profileData } = await supabase
-    .from('persona')
-    .select('*')
-    .eq('user_id', session.user.id)
-    .single();
+    if (error) {
+      console.error("Error getting session:", error.message);
+      return null;
+    }
 
-  if (!profileData) return null;
+    if (!data || !data.session || !data.session.user) {
+      return null;
+    }
 
-  return {
-    id: profileData.id,
-    name: `${profileData.nombre} ${profileData.apellido}`,
-    email: profileData.email,
-    role: profileData.rol === 'coach' ? UserRole.COACH : UserRole.STUDENT,
-  };
+    const session = data.session;
+
+    // Fetch profile
+    const { data: profileData } = await supabase
+      .from('persona')
+      .select('*')
+      .eq('user_id', session.user.id)
+      .single();
+
+    if (!profileData) return null;
+
+    return {
+      id: profileData.id,
+      name: `${profileData.nombre} ${profileData.apellido}`,
+      email: profileData.email,
+      role: profileData.rol === 'coach' ? UserRole.COACH : UserRole.STUDENT,
+    };
+  } catch (error) {
+    console.error("Error in getCurrentSession:", error);
+    return null;
+  }
 };
