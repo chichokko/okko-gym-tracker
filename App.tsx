@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { GymProvider } from './context/GymContext';
+import { SessionProvider, useSession } from './context/SessionContext';
 import Layout from './components/Layout';
 import Login from './components/features/auth/Login';
 import CoachSessionLogger from './components/CoachSessionLogger';
@@ -12,18 +13,19 @@ import SessionHistory from './components/features/sessions/SessionHistory';
 import UpdatePassword from './components/features/auth/UpdatePassword';
 import { Toaster } from './components/ui';
 import { User, UserRole } from './types';
-import { getCurrentSession, signOut } from './services/authService';
-import { Loader2 } from 'lucide-react';
+import { signOut } from './services/authService';
 import { supabase } from './lib/supabaseClient';
+import { Loader2 } from 'lucide-react';
 
-// Inner component to handle routing logic and auth events
+// Inner component to handle routing logic
 const AppContent: React.FC = () => {
+  const { session } = useSession();
   const [user, setUser] = useState<User | null>(null);
+  const [loadingProfile, setLoadingProfile] = useState(true);
   const [isDarkMode, setIsDarkMode] = useState(() => {
     const saved = localStorage.getItem('okko-theme');
     return saved ? JSON.parse(saved) : false;
   });
-  const [loadingSession, setLoadingSession] = useState(true);
   const navigate = useNavigate();
 
   // Init Dark Mode
@@ -36,45 +38,52 @@ const AppContent: React.FC = () => {
     localStorage.setItem('okko-theme', JSON.stringify(isDarkMode));
   }, [isDarkMode]);
 
-  // Main auth state listener - this is the core of auth handling
+  // Fetch user profile when session changes
   useEffect(() => {
-    // Get initial session
-    const getInitialSession = async () => {
+    const fetchUserProfile = async () => {
+      if (!session?.user) {
+        setUser(null);
+        setLoadingProfile(false);
+        return;
+      }
+
       try {
-        const currentUser = await getCurrentSession();
-        setUser(currentUser);
+        const { data: profileData, error } = await supabase
+          .from('persona')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .single();
+
+        if (error || !profileData) {
+          console.error("Profile fetch error:", error);
+          setUser(null);
+        } else {
+          setUser({
+            id: profileData.id,
+            name: `${profileData.nombre} ${profileData.apellido}`,
+            email: profileData.email,
+            role: profileData.rol === 'coach' ? UserRole.COACH : UserRole.STUDENT,
+          });
+        }
       } catch (error) {
-        console.error("Failed to restore session:", error);
-        // Ensure we don't leave user in broken state
+        console.error("Error fetching user profile:", error);
         setUser(null);
       } finally {
-        setLoadingSession(false);
+        setLoadingProfile(false);
       }
     };
 
-    getInitialSession();
+    fetchUserProfile();
+  }, [session]);
 
-    // Listen for auth state changes - Supabase handles token refresh automatically
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth event:', event);
-
-      if (event === 'SIGNED_IN' && session) {
-        const currentUser = await getCurrentSession();
-        setUser(currentUser);
-      } else if (event === 'SIGNED_OUT') {
-        setUser(null);
-        navigate('/');
-      } else if (event === 'PASSWORD_RECOVERY') {
+  // Handle PASSWORD_RECOVERY event
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') {
         navigate('/update-password');
-      } else if (event === 'TOKEN_REFRESHED') {
-        // Token was refreshed successfully - no action needed
-        console.log('Token refreshed successfully');
       }
     });
-
-    return () => {
-      subscription.unsubscribe();
-    };
+    return () => subscription.unsubscribe();
   }, [navigate]);
 
   const toggleTheme = () => setIsDarkMode(!isDarkMode);
@@ -85,7 +94,8 @@ const AppContent: React.FC = () => {
     navigate('/');
   };
 
-  if (loadingSession) {
+  // Loading profile after session is established
+  if (session && loadingProfile) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-slate-950 flex items-center justify-center">
         <Loader2 className="animate-spin text-slate-900 dark:text-white" size={32} />
@@ -94,7 +104,7 @@ const AppContent: React.FC = () => {
   }
 
   // Allow access to Login if not authenticated
-  if (!user) {
+  if (!session || !user) {
     return <Login onLoginSuccess={setUser} />;
   }
 
@@ -138,7 +148,9 @@ const App: React.FC = () => {
   return (
     <>
       <Router>
-        <AppContent />
+        <SessionProvider>
+          <AppContent />
+        </SessionProvider>
       </Router>
       <Toaster />
     </>
