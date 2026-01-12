@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Routine } from '../../../types';
 import { Card, Button, Input, IconButton, Select, Badge, PageHeader, EmptyState, LoadingOverlay } from '../../ui';
-import { Plus, Trash2, ChevronRight, Save, Loader2, ClipboardList } from 'lucide-react';
+import { Plus, Trash2, ChevronRight, Save, Loader2, ClipboardList, User } from 'lucide-react';
 import * as DataService from '../../../services/dataService';
 import { useGymData } from '../../../context/GymContext';
 import { toast } from '../../ui';
@@ -177,7 +177,15 @@ const RoutineManager: React.FC = () => {
                   <h3 className="font-bold text-xl">{routine.name}</h3>
                   <Badge>{routine.exercises.length} Ejercicios</Badge>
                 </div>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mb-4 line-clamp-2">{routine.description || 'Sin descripción'}</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mb-2 line-clamp-2">{routine.description || 'Sin descripción'}</p>
+
+                {/* Creator Info */}
+                {routine.creatorName && (
+                  <div className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500 mb-4">
+                    <User size={12} />
+                    <span>Creado por {routine.creatorName}</span>
+                  </div>
+                )}
                 <div className="space-y-1 bg-gray-50 dark:bg-slate-800/50 p-3 rounded-lg">
                   {routine.exercises.slice(0, 3).map((ex, i) => {
                     const exName = exercises.find(e => e.id === ex.exerciseId)?.name || 'Ejercicio desconocido';

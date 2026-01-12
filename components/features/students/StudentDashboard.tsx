@@ -3,7 +3,7 @@ import { User } from '../../../types';
 import { Card, Badge, LoadingOverlay, EmptyState, Select } from '../../ui';
 import { Calendar, TrendingUp, Dumbbell, Activity, Trophy } from 'lucide-react';
 import * as DataService from '../../../services/dataService';
-import { processStats, getExerciseProgress, getTopExercises, StudentStats } from '../../../utils/gymMetrics';
+import { processStats, getExerciseProgress, getAllPerformedExercises, StudentStats } from '../../../utils/gymMetrics';
 import { SafeChart } from './SafeChart';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -43,9 +43,9 @@ const StudentDashboard: React.FC<{ user: User }> = ({ user }) => {
     const calculatedStats = processStats(data);
     setStats(calculatedStats);
 
-    const topExercises = getTopExercises(data);
-    setExerciseOptions(topExercises);
-    if (topExercises.length > 0) setSelectedExercise(topExercises[0]);
+    const allExercises = getAllPerformedExercises(data);
+    setExerciseOptions(allExercises);
+    if (allExercises.length > 0) setSelectedExercise(allExercises[0]);
 
     setLoading(false);
   };

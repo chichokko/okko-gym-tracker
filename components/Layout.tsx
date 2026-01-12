@@ -32,10 +32,12 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, isDarkMode, t
       { label: 'Historial', icon: History, path: '/historial' },
       { label: 'Rutinas', icon: ClipboardList, path: '/rutinas' },
       { label: 'Ejercicios', icon: Dumbbell, path: '/ejercicios' },
+      { label: 'Mi Progreso', icon: Activity, path: '/mi-progreso' },
     ]
     : [
       { label: 'Mi Progreso', icon: Activity, path: '/' },
       { label: 'Historial', icon: History, path: '/historial' },
+      { label: 'Rutinas', icon: ClipboardList, path: '/rutinas' },
     ];
 
   // Bottom nav items (only 3 key items for mobile)
@@ -83,11 +85,11 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, isDarkMode, t
         </div>
       </main>
 
-      {/* Mobile Bottom Nav */}
-      <BottomNav
+      {/* Mobile Bottom Nav - Commented out as redundant with sidebar */}
+      {/* <BottomNav
         items={bottomNavItems}
         onMoreClick={() => setIsMobileMenuOpen(true)}
-      />
+      /> */}
     </div>
   );
 };

@@ -148,7 +148,7 @@ const SessionFocusView: React.FC<SessionFocusViewProps> = ({
                     <div className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-800">
                         <p className="text-xs font-bold text-slate-400 uppercase mb-2">Añadir Ejercicio</p>
                         <div className="flex flex-wrap gap-2">
-                            {availableExercises.slice(0, 5).map(ex => (
+                            {availableExercises.map(ex => (
                                 <button
                                     key={ex.id}
                                     onClick={() => handleAddExercise(ex)}

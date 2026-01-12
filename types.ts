@@ -36,6 +36,7 @@ export interface SessionExercise {
 export interface Session {
   id: string;
   studentId: string;
+  student?: { name: string; email?: string }; // Optional embedded student info
   coachId: string;
   date: Date;
   exercises: SessionExercise[];
@@ -54,6 +55,7 @@ export interface Routine {
   name: string;
   description?: string;
   exercises: RoutineExercise[];
+  creatorName?: string;
 }
 
 export interface MockDataState {

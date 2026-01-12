@@ -111,7 +111,8 @@ const calculateStreak = (sortedSessions: CompletedSession[]): number => {
     return 0;
 };
 
-export const getTopExercises = (sessions: CompletedSession[]): string[] => {
+// Returns all exercises performed by the student, sorted by frequency
+export const getAllPerformedExercises = (sessions: CompletedSession[]): string[] => {
     const counts = new Map<string, number>();
     sessions.forEach(s => {
         s.exercises.forEach(e => {
@@ -121,7 +122,6 @@ export const getTopExercises = (sessions: CompletedSession[]): string[] => {
 
     // Sort by frequency
     return Array.from(counts.entries())
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 5) // Top 5
+        .sort((a, b) => b[1] - a[1]) // Most frequent first
         .map(e => e[0]);
 };

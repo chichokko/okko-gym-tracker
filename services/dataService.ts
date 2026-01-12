@@ -27,10 +27,28 @@ const handleAuthError = async (error: any) => {
 };
 
 export const getStudents = async (): Promise<User[]> => {
+  // 1. Obtener usuario actual
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  // 2. Obtener la 'persona' asociada al usuario (Coach)
+  const { data: persona } = await supabase.from('persona').select('id').eq('user_id', user.id).single();
+  if (!persona) return [];
+
+  // 3. Obtener alumnos activos relacionados con este coach
+  // Usamos !inner para filtrar solo los que tienen relación en coach_alumno con este coach Y activo=true
+  // Usamos un alias 'coach_alumno' para la relación explícita y evitar errores PGRST201
   const { data, error } = await supabase
     .from('persona')
-    .select('*')
-    .eq('rol', 'alumno');
+    .select(`
+      *,
+      coach_alumno:coach_alumno!coach_alumno_id_alumno_fkey!inner (
+        id_coach,
+        activo
+      )
+    `)
+    .eq('coach_alumno.id_coach', persona.id)
+    .eq('coach_alumno.activo', true);
 
   if (error) {
     await handleAuthError(error);
@@ -47,7 +65,14 @@ export const getStudents = async (): Promise<User[]> => {
 };
 
 export const createStudent = async (student: Partial<User> & { firstName: string, lastName: string }): Promise<User | null> => {
-  // En un caso real, esto debería estar vinculado a auth.signUp
+  // 1. Obtener usuario actual (Coach)
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const { data: persona } = await supabase.from('persona').select('id').eq('user_id', user.id).single();
+  if (!persona) return null;
+
+  // 2. Crear Alumno
   const { data, error } = await supabase
     .from('persona')
     .insert([{
@@ -62,6 +87,20 @@ export const createStudent = async (student: Partial<User> & { firstName: string
   if (error) {
     await handleAuthError(error);
     return null;
+  }
+
+  // 3. Crear relación Coach-Alumno (Auto-link)
+  const { error: relError } = await supabase
+    .from('coach_alumno')
+    .insert([{
+      id_coach: persona.id,
+      id_alumno: data.id,
+      activo: true
+    }]);
+
+  if (relError) {
+    console.error("Error creating coach-student relation:", relError);
+    // Podríamos borrar el alumno creado si la relación falla, pero por ahora lo dejamos y solo logueamos
   }
 
   return {
@@ -140,11 +179,12 @@ export const deleteExercise = async (id: string): Promise<boolean> => {
 // --- RUTINAS ---
 
 export const getRoutines = async (): Promise<Routine[]> => {
-  // Eliminamos descanso_segundos de la query ya que no existe en DB
+  // Incluimos creador_id y hacemos join con persona para obtener nombre del creador
   const { data, error } = await supabase
     .from('rutina')
     .select(`
-      id, nombre, descripcion,
+      id, nombre, descripcion, creador_id,
+      persona!creador_id (nombre, apellido),
       rutina_ejercicio (
         ejercicio_id,
         series_objetivo,
@@ -162,6 +202,7 @@ export const getRoutines = async (): Promise<Routine[]> => {
     id: r.id,
     name: r.nombre,
     description: r.descripcion,
+    creatorName: r.persona ? `${r.persona.nombre} ${r.persona.apellido}` : undefined,
     exercises: r.rutina_ejercicio.sort((a: any, b: any) => a.orden - b.orden).map((re: any) => ({
       exerciseId: re.ejercicio_id,
       sets: re.series_objetivo,
@@ -295,6 +336,7 @@ export const getActiveSessions = async (): Promise<Session[]> => {
     return {
       id: s.id,
       studentId: s.alumno_id,
+      student: s.persona ? { name: `${s.persona.nombre} ${s.persona.apellido}`, email: s.persona.email } : undefined,
       coachId: s.coach_id || s.creador_id,
       date: new Date(s.fecha),
       active: s.activo,

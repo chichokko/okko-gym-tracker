@@ -81,17 +81,19 @@ export const GymProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         refreshData();
     }, [refreshData]);
 
+    const contextValue = React.useMemo(() => ({
+        students,
+        routines,
+        exercises,
+        isLoading,
+        refreshData,
+        refreshStudents,
+        refreshRoutines,
+        refreshExercises
+    }), [students, routines, exercises, isLoading, refreshData, refreshStudents, refreshRoutines, refreshExercises]);
+
     return (
-        <GymContext.Provider value={{
-            students,
-            routines,
-            exercises,
-            isLoading,
-            refreshData,
-            refreshStudents,
-            refreshRoutines,
-            refreshExercises
-        }}>
+        <GymContext.Provider value={contextValue}>
             {children}
         </GymContext.Provider>
     );
