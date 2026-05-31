@@ -26,12 +26,28 @@ export const signInWithEmail = async (email: string, password: string): Promise<
     }
 
     // 3. Map to App User Type
+    const defaultConfig = { unit: 'kg' as const, smallBrickWeight: 5, largeBrickWeight: 7.5 };
+    
+    // Safety check for JSONB config mapping
+    let appConfig = defaultConfig;
+    if (profileData.configuracion) {
+        try {
+            const parsed = typeof profileData.configuracion === 'string' ? JSON.parse(profileData.configuracion) : profileData.configuracion;
+            appConfig = { ...defaultConfig, ...parsed };
+        } catch (e) {
+            console.warn("Could not parse user config", e);
+        }
+    }
+
     const appUser: User = {
       id: profileData.id, // We use the Persona ID for app logic, not Auth ID
       name: `${profileData.nombre} ${profileData.apellido}`,
+      firstName: profileData.nombre,
+      lastName: profileData.apellido,
       email: profileData.email,
       role: profileData.rol === 'coach' ? UserRole.COACH : UserRole.STUDENT,
-      avatarUrl: undefined
+      avatarUrl: profileData.avatar_url || undefined,
+      config: appConfig
     };
 
     return { user: appUser, error: null };
@@ -44,6 +60,26 @@ export const signInWithEmail = async (email: string, password: string): Promise<
 // Use scope: 'local' to only clear local session, not invalidate tokens server-side
 export const signOut = async () => {
   await supabase.auth.signOut({ scope: 'local' });
+};
+
+export const updateUserEmail = async (email: string): Promise<{ error: string | null }> => {
+  try {
+    const { error } = await supabase.auth.updateUser({ email });
+    if (error) return { error: error.message };
+    return { error: null };
+  } catch (err: any) {
+    return { error: err.message || "Error desconocido" };
+  }
+};
+
+export const updateUserPassword = async (password: string): Promise<{ error: string | null }> => {
+  try {
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) return { error: error.message };
+    return { error: null };
+  } catch (err: any) {
+    return { error: err.message || "Error desconocido" };
+  }
 };
 
 // getCurrentSession is no longer used - session is managed via onAuthStateChange in SessionContext.

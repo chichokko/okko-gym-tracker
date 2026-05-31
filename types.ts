@@ -3,12 +3,23 @@ export enum UserRole {
   STUDENT = 'STUDENT'
 }
 
+export interface AppConfig {
+  unit: 'kg' | 'lbs';
+  smallBrickWeight: number;
+  largeBrickWeight: number;
+  showRoutineLibrary?: boolean;
+  logoUrl?: string;
+}
+
 export interface User {
   id: string;
   name: string;
+  firstName?: string; // added to split name
+  lastName?: string;  // added to split name
   role: UserRole;
   email?: string;
   avatarUrl?: string;
+  config?: AppConfig;
 }
 
 export interface Exercise {
@@ -16,6 +27,8 @@ export interface Exercise {
   name: string;
   muscleGroup: string;
   defaultRestSeconds: number;
+  accessory?: string;
+  videoUrl?: string;
 }
 
 export interface SetLog {
@@ -47,7 +60,10 @@ export interface RoutineExercise {
   exerciseId: string;
   sets: number;
   reps: string; // "8-12" or "5"
-  restSeconds: number;
+  restSeconds: number; // kept for backwards compatibility or deprecated
+  cadence?: string;
+  rest?: string;
+  observation?: string;
 }
 
 export interface Routine {
@@ -56,6 +72,25 @@ export interface Routine {
   description?: string;
   exercises: RoutineExercise[];
   creatorName?: string;
+}
+
+export interface RutinaPlanificacion {
+  id: string;
+  planificacionId: string;
+  routineId: string;
+  routine?: Routine;
+}
+
+export interface Planificacion {
+  id: string;
+  name: string;
+  description?: string;
+  creatorId: string;
+  type: string;
+  duration?: string;
+  studentId?: string;
+  createdAt?: Date;
+  days: RutinaPlanificacion[];
 }
 
 export interface MockDataState {

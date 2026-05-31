@@ -111,6 +111,37 @@ export const createStudent = async (student: Partial<User> & { firstName: string
   };
 };
 
+export const updateUserProfile = async (id: string, data: Partial<User>): Promise<boolean> => {
+  const payload: any = {};
+  if (data.firstName) payload.nombre = data.firstName;
+  if (data.lastName) payload.apellido = data.lastName;
+  if (data.avatarUrl !== undefined) payload.avatar_url = data.avatarUrl; // allows clearing with empty string
+
+  const { error } = await supabase
+    .from('persona')
+    .update(payload)
+    .eq('id', id);
+
+  if (error) {
+    await handleAuthError(error);
+    return false;
+  }
+  return true;
+};
+
+export const updateUserConfig = async (id: string, config: any): Promise<boolean> => {
+  const { error } = await supabase
+    .from('persona')
+    .update({ configuracion: config }) // Save as JSONB
+    .eq('id', id);
+
+  if (error) {
+    await handleAuthError(error);
+    return false;
+  }
+  return true;
+};
+
 // --- EJERCICIOS ---
 
 export const getExercises = async (): Promise<Exercise[]> => {
@@ -124,7 +155,9 @@ export const getExercises = async (): Promise<Exercise[]> => {
     id: e.id,
     name: e.nombre,
     muscleGroup: e.grupo_muscular,
-    defaultRestSeconds: 120 // Default ya que no está en la tabla ejercicio original
+    defaultRestSeconds: 120, // Default ya que no está en la tabla ejercicio original
+    accessory: e.accesorio,
+    videoUrl: e.video_url
   }));
 };
 
@@ -143,6 +176,8 @@ export const saveExercise = async (exercise: Partial<Exercise>): Promise<boolean
       nombre: exercise.name,
       grupo_muscular: exercise.muscleGroup,
       //creador_id: creadorId  Asignar creador para que RLS permita verlo
+      accesorio: exercise.accessory,
+      video_url: exercise.videoUrl
     };
 
     // Only include ID if it's an update
@@ -189,7 +224,10 @@ export const getRoutines = async (): Promise<Routine[]> => {
         ejercicio_id,
         series_objetivo,
         reps_objetivo,
-        orden
+        orden,
+        cadencia,
+        descanso,
+        observacion
       )
     `);
 
@@ -207,12 +245,15 @@ export const getRoutines = async (): Promise<Routine[]> => {
       exerciseId: re.ejercicio_id,
       sets: re.series_objetivo,
       reps: re.reps_objetivo,
-      restSeconds: 120 // Valor por defecto ya que no viene de la base de datos
+      restSeconds: 120, // Deprecated, kept for backward compatibility
+      cadence: re.cadencia,
+      rest: re.descanso,
+      observation: re.observacion
     }))
   }));
 };
 
-export const saveRoutine = async (routine: Routine): Promise<boolean> => {
+export const saveRoutine = async (routine: Routine): Promise<Routine | null> => {
   try {
     // 1. Obtener usuario actual (Coach)
     const { data: { user } } = await supabase.auth.getUser();
@@ -258,7 +299,9 @@ export const saveRoutine = async (routine: Routine): Promise<boolean> => {
         ejercicio_id: ex.exerciseId,
         series_objetivo: ex.sets,
         reps_objetivo: ex.reps, // string "8-12"
-        // descanso_segundos: ex.restSeconds, // Eliminado porque no existe columna
+        cadencia: ex.cadence || null,
+        descanso: ex.rest || null,
+        observacion: ex.observation || null,
         orden: index
       }));
 
@@ -269,11 +312,144 @@ export const saveRoutine = async (routine: Routine): Promise<boolean> => {
       if (exercisesError) throw exercisesError;
     }
 
-    return true;
+    return { ...routine, id: savedRoutine.id };
   } catch (error) {
+    await handleAuthError(error);
+    return null;
+  }
+};
+
+// --- PLANIFICACION ---
+
+export const getPlanificaciones = async (): Promise<any[]> => {
+  // Get persona ID for the current auth user
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data: persona } = await supabase.from('persona').select('id').eq('user_id', user.id).single();
+  if (!persona) return [];
+
+  const { data, error } = await supabase
+    .from('planificacion')
+    .select(`
+      *,
+      rutina_planificacion (
+        id,
+        rutina_id,
+        rutina (
+          id, nombre, descripcion,
+          rutina_ejercicio (
+            ejercicio_id, series_objetivo, reps_objetivo, orden, cadencia, descanso, observacion
+          )
+        )
+      )
+    `)
+    .eq('creador_id', persona.id)
+    .order('created_at', { ascending: false });
+  
+  if (error) {
+    await handleAuthError(error);
+    return [];
+  }
+
+  return data.map((p: any) => ({
+    id: p.id,
+    name: p.nombre,
+    description: p.descripcion,
+    creatorId: p.creador_id,
+    type: p.tipo,
+    duration: p.duracion,
+    studentId: p.alumno_id,
+    createdAt: p.created_at ? new Date(p.created_at) : undefined,
+    days: (p.rutina_planificacion || []).filter((rp: any) => rp.rutina).map((rp: any) => ({
+      id: rp.id,
+      planificacionId: p.id,
+      routineId: rp.rutina_id,
+      routine: {
+        id: rp.rutina.id,
+        name: rp.rutina.nombre,
+        description: rp.rutina.descripcion,
+        exercises: (rp.rutina.rutina_ejercicio || []).sort((a: any, b: any) => a.orden - b.orden).map((re: any) => ({
+          exerciseId: re.ejercicio_id,
+          sets: re.series_objetivo,
+          reps: re.reps_objetivo,
+          restSeconds: 120,
+          cadence: re.cadencia,
+          rest: re.descanso,
+          observation: re.observacion
+        }))
+      }
+    }))
+  }));
+};
+
+export const savePlanificacion = async (plan: any): Promise<any | null> => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error("No user authenticated");
+
+    const { data: persona } = await supabase.from('persona').select('id').eq('user_id', user.id).single();
+    if (!persona) throw new Error("No se encontró el perfil del entrenador");
+
+    const payload = {
+      id: plan.id || undefined,
+      nombre: plan.name,
+      descripcion: plan.description || null,
+      tipo: plan.type || 'mesociclo',
+      duracion: plan.duration || null,
+      alumno_id: plan.studentId || null,
+      creador_id: persona.id
+    };
+
+    const { data, error } = await supabase
+      .from('planificacion')
+      .upsert(payload)
+      .select()
+      .single();
+
+    if (error) throw error;
+    
+    // Mapping back to app format
+    return {
+      id: data.id,
+      name: data.nombre,
+      description: data.descripcion,
+      creatorId: data.creador_id,
+      type: data.tipo,
+      duration: data.duracion,
+      studentId: data.alumno_id,
+      createdAt: data.created_at ? new Date(data.created_at) : undefined,
+      days: plan.days || [] // Just carry over existing days for builder state
+    };
+  } catch (error) {
+    await handleAuthError(error);
+    return null;
+  }
+};
+
+export const addRoutineToPlan = async (planId: string, routineId: string): Promise<boolean> => {
+  const { error } = await supabase
+    .from('rutina_planificacion')
+    .insert([{ planificacion_id: planId, rutina_id: routineId }]);
+    
+  if (error) {
     await handleAuthError(error);
     return false;
   }
+  return true;
+};
+
+export const removeRoutineFromPlan = async (rutinaPlanificacionId: string): Promise<boolean> => {
+  const { error } = await supabase
+    .from('rutina_planificacion')
+    .delete()
+    .eq('id', rutinaPlanificacionId);
+    
+  if (error) {
+    await handleAuthError(error);
+    return false;
+  }
+  return true;
 };
 
 // --- SESIONES ---

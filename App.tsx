@@ -11,6 +11,8 @@ import RoutineManager from './components/features/routines/RoutineManager';
 import RoutinesViewer from './components/features/routines/RoutinesViewer';
 import ExerciseManager from './components/features/routines/ExerciseManager';
 import SessionHistory from './components/features/sessions/SessionHistory';
+import SettingsView from './components/features/settings/SettingsView';
+import PlanificacionManager from './components/features/planning/PlanificacionManager';
 import UpdatePassword from './components/features/auth/UpdatePassword';
 import { Toaster } from './components/ui';
 import { User, UserRole } from './types';
@@ -59,11 +61,26 @@ const AppContent: React.FC = () => {
           console.error("Profile fetch error:", error);
           setUser(null);
         } else {
+          const defaultConfig = { unit: 'kg' as const, smallBrickWeight: 5, largeBrickWeight: 7.5 };
+          let appConfig = defaultConfig;
+          if (profileData.configuracion) {
+              try {
+                  const parsed = typeof profileData.configuracion === 'string' ? JSON.parse(profileData.configuracion) : profileData.configuracion;
+                  appConfig = { ...defaultConfig, ...parsed };
+              } catch (e) {
+                  console.warn("Could not parse user config", e);
+              }
+          }
+
           setUser({
             id: profileData.id,
             name: `${profileData.nombre} ${profileData.apellido}`,
+            firstName: profileData.nombre,
+            lastName: profileData.apellido,
             email: profileData.email,
             role: profileData.rol === 'coach' ? UserRole.COACH : UserRole.STUDENT,
+            avatarUrl: profileData.avatar_url || undefined,
+            config: appConfig
           });
         }
       } catch (error) {
@@ -129,6 +146,8 @@ const AppContent: React.FC = () => {
                   <Route path="/rutinas" element={<RoutineManager />} />
                   <Route path="/ejercicios" element={<ExerciseManager />} />
                   <Route path="/mi-progreso" element={<StudentDashboard user={user} />} />
+                  <Route path="/configuracion" element={<SettingsView user={user} />} />
+                  <Route path="/planificacion" element={<PlanificacionManager />} />
                   <Route path="*" element={<Navigate to="/logger" replace />} />
                 </>
               ) : (
@@ -136,6 +155,8 @@ const AppContent: React.FC = () => {
                   <Route path="/" element={<StudentDashboard user={user} />} />
                   <Route path="/historial" element={<SessionHistory studentId={user.id} />} />
                   <Route path="/rutinas" element={<RoutinesViewer />} />
+                  <Route path="/configuracion" element={<SettingsView user={user} />} />
+                  <Route path="/planificacion" element={<PlanificacionManager />} />
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </>
               )}

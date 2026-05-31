@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Exercise } from '../../../types';
 import { Card, Button, Input, IconButton, Select, Badge, PageHeader, EmptyState, LoadingOverlay, MobileCardList } from '../../ui';
-import { Plus, Edit2, Trash2, Search, Dumbbell, Save, X, Loader2 } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, Dumbbell, Save, X, Loader2, Video, Link as LinkIcon } from 'lucide-react';
 import * as DataService from '../../../services/dataService';
 import { useGymData } from '../../../context/GymContext';
 import { toast } from '../../ui';
@@ -110,6 +110,19 @@ const ExerciseManager: React.FC = () => {
                             >
                                 {MUSCLE_GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
                             </Select>
+                            <Input
+                                label="Accesorio / Variante"
+                                value={currentExercise.accessory || ''}
+                                onChange={e => setCurrentExercise({ ...currentExercise, accessory: e.target.value })}
+                                placeholder="Ej: Barra, Mancuernas, Polea Alta"
+                            />
+                            <Input
+                                label="Video URL (YouTube)"
+                                value={currentExercise.videoUrl || ''}
+                                onChange={e => setCurrentExercise({ ...currentExercise, videoUrl: e.target.value })}
+                                placeholder="https://youtube.com/..."
+                                icon={Video}
+                            />
                         </div>
                         <div className="flex justify-end gap-2 pt-2">
                             <Button type="button" variant="ghost" onClick={handleCancel} disabled={isSaving}>Cancelar</Button>
@@ -145,6 +158,8 @@ const ExerciseManager: React.FC = () => {
                                     <tr className="bg-gray-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">
                                         <th className="p-4 font-bold rounded-tl-lg">Nombre</th>
                                         <th className="p-4 font-bold">Grupo Muscular</th>
+                                        <th className="p-4 font-bold">Accesorio</th>
+                                        <th className="p-4 font-bold text-center">Video</th>
                                         <th className="p-4 font-bold text-right rounded-tr-lg">Acciones</th>
                                     </tr>
                                 </thead >
@@ -161,6 +176,26 @@ const ExerciseManager: React.FC = () => {
                                                 <Badge color="bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
                                                     {ex.muscleGroup}
                                                 </Badge>
+                                            </td>
+                                            <td className="p-4">
+                                                {ex.accessory && (
+                                                    <Badge color="bg-orange-50 text-orange-700 dark:bg-orange-900/20 dark:text-orange-300 border border-orange-200 dark:border-orange-800">
+                                                        {ex.accessory}
+                                                    </Badge>
+                                                )}
+                                            </td>
+                                            <td className="p-4 text-center">
+                                                {ex.videoUrl && (
+                                                    <a
+                                                        href={ex.videoUrl}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+                                                        title="Ver Video"
+                                                    >
+                                                        <Video size={16} />
+                                                    </a>
+                                                )}
                                             </td>
                                             <td className="p-4 text-right">
                                                 <div className="flex justify-end gap-2 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
@@ -185,8 +220,9 @@ const ExerciseManager: React.FC = () => {
                             data={filteredExercises}
                             keyExtractor={(ex) => ex.id}
                             titleField={(ex) => ex.name}
-                            subtitleField={(ex) => ex.muscleGroup}
+                            subtitleField={(ex) => `${ex.muscleGroup} ${ex.accessory ? `• ${ex.accessory}` : ''}`}
                             getActions={(ex) => [
+                                ...(ex.videoUrl ? [{ label: 'Ver Video', icon: Video, onClick: () => window.open(ex.videoUrl, '_blank') }] : []),
                                 { label: 'Editar', icon: Edit2, onClick: () => handleEdit(ex) },
                                 { label: 'Eliminar', icon: Trash2, onClick: () => handleDelete(ex.id), variant: 'danger' }
                             ]}

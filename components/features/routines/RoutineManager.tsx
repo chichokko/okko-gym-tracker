@@ -19,9 +19,9 @@ const RoutineManager: React.FC = () => {
     }
 
     setIsSaving(true);
-    const success = await DataService.saveRoutine(editingRoutine);
+    const result = await DataService.saveRoutine(editingRoutine);
 
-    if (success) {
+    if (result) {
       await refreshRoutines();
       toast.success("Rutina guardada");
       setEditingRoutine(null);

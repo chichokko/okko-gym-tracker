@@ -7,7 +7,9 @@ import {
   ClipboardList,
   Activity,
   LayoutDashboard,
-  History
+  History,
+  Settings,
+  BookOpen
 } from 'lucide-react';
 import { Sidebar, MobileHeader, MobileMenu, BottomNav } from './layout/index';
 
@@ -23,22 +25,26 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, isDarkMode, t
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const isCoach = user.role === UserRole.COACH;
+  const showRoutineLibrary = user.config?.showRoutineLibrary !== false; // default true
 
   // Full navigation items (for sidebar and mobile menu)
-  const allNavItems = isCoach
+  const allNavItems = (isCoach
     ? [
       { label: 'Sesión Actual', icon: PlayCircle, path: '/logger' },
       { label: 'Alumnos', icon: Users, path: '/alumnos' },
       { label: 'Historial', icon: History, path: '/historial' },
-      { label: 'Rutinas', icon: ClipboardList, path: '/rutinas' },
+      { label: 'Planificación', icon: ClipboardList, path: '/planificacion' },
+      ...(showRoutineLibrary ? [{ label: 'Librería de Rutinas', icon: BookOpen, path: '/rutinas' }] : []),
       { label: 'Ejercicios', icon: Dumbbell, path: '/ejercicios' },
       { label: 'Mi Progreso', icon: Activity, path: '/mi-progreso' },
+      { label: 'Configuración', icon: Settings, path: '/configuracion' },
     ]
     : [
       { label: 'Mi Progreso', icon: Activity, path: '/' },
       { label: 'Historial', icon: History, path: '/historial' },
-      { label: 'Rutinas', icon: ClipboardList, path: '/rutinas' },
-    ];
+      { label: 'Planificación', icon: ClipboardList, path: '/planificacion' },
+      { label: 'Configuración', icon: Settings, path: '/configuracion' },
+    ]);
 
   // Bottom nav items (only 3 key items for mobile)
   const bottomNavItems = isCoach
