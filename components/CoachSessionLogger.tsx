@@ -148,6 +148,27 @@ const CoachSessionLogger: React.FC = () => {
         );
     };
 
+    const handleDiscardSession = async (sessionId: string) => {
+        const session = activeSessions.find(s => s.internalId === sessionId);
+        if (!session) return;
+
+        if (!confirm(`¿Descartar entrenamiento de ${session.student.name}? Se eliminará cualquier progreso guardado.`)) return;
+
+        setIsLoadingSessions(true);
+        try {
+            if (session.isDbPersisted) {
+                await DataService.deleteSession(session.isDbPersisted ? session.internalId : '');
+            }
+            setActiveSessions(prev => prev.filter(s => s.internalId !== sessionId));
+            toast.success(`Entrenamiento de ${session.student.name} descartado`);
+        } catch (error) {
+            toast.error('Error al descartar sesión');
+            console.error(error);
+        } finally {
+            setIsLoadingSessions(false);
+        }
+    };
+
     const handleFinishSession = async (sessionId: string) => {
         const session = activeSessions.find(s => s.internalId === sessionId);
         if (!session) return;
@@ -220,11 +241,12 @@ const CoachSessionLogger: React.FC = () => {
     }
 
     return (
-        <SessionDashboard
+            <SessionDashboard
             activeSessions={activeSessions}
             isLoading={isGlobalLoading || isLoadingSessions}
             onStartNew={() => setViewMode('SETUP')}
             onSelectSession={handleSelectSession}
+            onDiscardSession={handleDiscardSession}
         />
     );
 };

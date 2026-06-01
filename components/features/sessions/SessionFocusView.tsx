@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Exercise, SessionExercise, SetLog } from '../../../types';
-import { Card, Button, Badge, IconButton } from '../../ui';
-import { Plus, ArrowLeft, PauseCircle, PlayCircle, RotateCcw, X, Cloud } from 'lucide-react';
+import { Card, Button, Badge, IconButton, Modal, Input, toast } from '../../ui';
+import { Plus, ArrowLeft, PauseCircle, PlayCircle, RotateCcw, X, Search, Loader2 } from 'lucide-react';
 import { ActiveSession, formatTime, generateId } from './types';
+import * as DataService from '../../../services/dataService';
+import { useGymData } from '../../../context/GymContext';
 
 interface SessionFocusViewProps {
     session: ActiveSession;
@@ -23,6 +25,17 @@ const SessionFocusView: React.FC<SessionFocusViewProps> = ({
     onFinishSession,
     onUpdateSession,
 }) => {
+    // Exercise picker state
+    const { refreshExercises } = useGymData();
+
+    const [exercisePickerOpen, setExercisePickerOpen] = useState(false);
+    const [exSearchTerm, setExSearchTerm] = useState('');
+    const [isCreatingExercise, setIsCreatingExercise] = useState(false);
+    const [newExName, setNewExName] = useState('');
+    const [newExMuscle, setNewExMuscle] = useState('');
+    const [newExAccessory, setNewExAccessory] = useState('');
+    const exPickerContainerRef = useRef<HTMLDivElement>(null);
+
     // Timer state
     const [globalTimer, setGlobalTimer] = useState(0);
     const [isTimerRunning, setIsTimerRunning] = useState(false);
@@ -42,6 +55,26 @@ const SessionFocusView: React.FC<SessionFocusViewProps> = ({
     };
 
     const activeExercise = session.exercises.find(e => e.id === session.activeExerciseId);
+
+    const filteredExercises = useMemo(() => {
+        if (!exSearchTerm) return availableExercises;
+        const q = exSearchTerm.toLowerCase();
+        return availableExercises.filter(e =>
+            e.name.toLowerCase().includes(q) ||
+            e.muscleGroup.toLowerCase().includes(q) ||
+            (e.accessory && e.accessory.toLowerCase().includes(q))
+        );
+    }, [availableExercises, exSearchTerm]);
+
+    const handleDeleteExercise = (exId: string) => {
+        onUpdateSession(s => ({
+            ...s,
+            exercises: s.exercises.filter(ex => ex.id !== exId),
+            activeExerciseId: s.activeExerciseId === exId
+                ? (s.exercises.find(ex => ex.id !== exId)?.id || null)
+                : s.activeExerciseId
+        }));
+    };
 
     const handleAddExercise = (exBase: Exercise) => {
         const newEx: SessionExercise = {
@@ -93,6 +126,29 @@ const SessionFocusView: React.FC<SessionFocusViewProps> = ({
         }));
     };
 
+    const handleCreateExercise = async () => {
+        if (!newExName.trim() || !newExMuscle.trim()) {
+            toast.error('Nombre y grupo muscular son obligatorios');
+            return;
+        }
+        setIsCreatingExercise(true);
+        const success = await DataService.saveExercise({
+            name: newExName.trim(),
+            muscleGroup: newExMuscle.trim(),
+            accessory: newExAccessory.trim() || undefined
+        });
+        if (success) {
+            toast.success('Ejercicio creado');
+            setNewExName('');
+            setNewExMuscle('');
+            setNewExAccessory('');
+            await refreshExercises();
+        } else {
+            toast.error('Error al crear ejercicio');
+        }
+        setIsCreatingExercise(false);
+    };
+
     const setActiveExercise = (exId: string) => {
         onUpdateSession(s => ({ ...s, activeExerciseId: exId }));
     };
@@ -129,35 +185,40 @@ const SessionFocusView: React.FC<SessionFocusViewProps> = ({
                         <div
                             key={ex.id}
                             onClick={() => setActiveExercise(ex.id)}
-                            className={`p-3 rounded-lg cursor-pointer border flex justify-between items-center ${session.activeExerciseId === ex.id
+                            className={`p-3 rounded-lg cursor-pointer border flex justify-between items-center group ${session.activeExerciseId === ex.id
                                 ? 'bg-white dark:bg-slate-800 border-blue-500 shadow-sm'
                                 : 'border-transparent hover:bg-white dark:hover:bg-slate-800'
                                 }`}
                         >
-                            <div>
-                                <div className="font-bold text-sm">{ex.exercise.name}</div>
+                            <div className="flex-1 min-w-0">
+                                <div className="font-bold text-sm truncate">{ex.exercise.name}</div>
                                 <div className="text-xs text-slate-500">
                                     {ex.sets.filter(s => s.weight > 0 || s.reps > 0).length} / {ex.sets.length} series
                                 </div>
                             </div>
-                            {session.activeExerciseId === ex.id && <div className="w-2 h-2 rounded-full bg-blue-500" />}
+                            <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                                {session.activeExerciseId === ex.id && <div className="w-2 h-2 rounded-full bg-blue-500" />}
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); handleDeleteExercise(ex.id); }}
+                                    className="p-1 rounded hover:bg-red-50 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    title="Eliminar ejercicio"
+                                >
+                                    <X size={14} />
+                                </button>
+                            </div>
                         </div>
                     ))}
 
                     {/* Add Exercise */}
                     <div className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-800">
-                        <p className="text-xs font-bold text-slate-400 uppercase mb-2">Añadir Ejercicio</p>
-                        <div className="flex flex-wrap gap-2">
-                            {availableExercises.map(ex => (
-                                <button
-                                    key={ex.id}
-                                    onClick={() => handleAddExercise(ex)}
-                                    className="px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-full text-xs hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
-                                >
-                                    + {ex.name}
-                                </button>
-                            ))}
-                        </div>
+                        <Badge color="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 mb-2">nuevo ejercicio</Badge>
+                        <Button
+                            variant="secondary"
+                            fullWidth
+                            onClick={() => setExercisePickerOpen(true)}
+                        >
+                            <Plus size={16} /> Agregar
+                        </Button>
                     </div>
                 </div>
 
@@ -257,6 +318,77 @@ const SessionFocusView: React.FC<SessionFocusViewProps> = ({
                     )}
                 </div>
             </div>
+
+            {/* Exercise Picker Modal */}
+            <Modal
+                isOpen={exercisePickerOpen}
+                onClose={() => { setExercisePickerOpen(false); setExSearchTerm(''); }}
+                title="Agregar Ejercicio"
+                size="lg"
+            >
+                <div className="space-y-4">
+                    <Input
+                        placeholder="Buscar por nombre, grupo muscular o accesorio..."
+                        value={exSearchTerm}
+                        onChange={e => setExSearchTerm(e.target.value)}
+                    />
+
+                    <div className="max-h-48 overflow-y-auto space-y-1 border border-slate-200 dark:border-slate-700 rounded-lg">
+                        {filteredExercises.length === 0 ? (
+                            <p className="p-4 text-center text-slate-500 text-sm">No se encontraron ejercicios</p>
+                        ) : (
+                            filteredExercises.map(e => (
+                                <button
+                                    key={e.id}
+                                    type="button"
+                                    onClick={() => { handleAddExercise(e); setExercisePickerOpen(false); setExSearchTerm(''); }}
+                                    className="w-full text-left px-4 py-3 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors border-b border-slate-100 dark:border-slate-800 last:border-0"
+                                >
+                                    <div>
+                                        <span className="font-medium text-sm">{e.name}</span>
+                                        <span className="text-xs text-slate-500 ml-2">{e.muscleGroup}</span>
+                                    </div>
+                                    {e.accessory && (
+                                        <Badge color="bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                                            {e.accessory}
+                                        </Badge>
+                                    )}
+                                </button>
+                            ))
+                        )}
+                    </div>
+
+                    <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
+                        <h4 className="text-sm font-semibold mb-3">Crear nuevo ejercicio</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                            <Input
+                                placeholder="Nombre"
+                                value={newExName}
+                                onChange={e => setNewExName(e.target.value)}
+                            />
+                            <Input
+                                placeholder="Grupo muscular"
+                                value={newExMuscle}
+                                onChange={e => setNewExMuscle(e.target.value)}
+                            />
+                            <Input
+                                placeholder="Accesorio (opcional)"
+                                value={newExAccessory}
+                                onChange={e => setNewExAccessory(e.target.value)}
+                            />
+                        </div>
+                        <Button
+                            type="button"
+                            size="sm"
+                            onClick={handleCreateExercise}
+                            disabled={isCreatingExercise}
+                        >
+                            {isCreatingExercise ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+                            Crear
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
         </div>
     );
 };

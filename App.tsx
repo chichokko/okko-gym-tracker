@@ -147,7 +147,7 @@ const AppContent: React.FC = () => {
                   <Route path="/ejercicios" element={<ExerciseManager />} />
                   <Route path="/mi-progreso" element={<StudentDashboard user={user} />} />
                   <Route path="/configuracion" element={<SettingsView user={user} />} />
-                  <Route path="/planificacion" element={<PlanificacionManager />} />
+                  <Route path="/planificacion" element={<PlanificacionManager user={user} />} />
                   <Route path="*" element={<Navigate to="/logger" replace />} />
                 </>
               ) : (
@@ -156,7 +156,7 @@ const AppContent: React.FC = () => {
                   <Route path="/historial" element={<SessionHistory studentId={user.id} />} />
                   <Route path="/rutinas" element={<RoutinesViewer />} />
                   <Route path="/configuracion" element={<SettingsView user={user} />} />
-                  <Route path="/planificacion" element={<PlanificacionManager />} />
+                  <Route path="/planificacion" element={<PlanificacionManager user={user} />} />
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </>
               )}

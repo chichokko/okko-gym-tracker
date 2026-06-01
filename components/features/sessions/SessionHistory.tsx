@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { Eye, Calendar, Dumbbell, TrendingUp } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Eye, Calendar, Dumbbell, Search, RotateCcw } from 'lucide-react';
 import {
     PageHeader,
-    SearchInput,
     DataTable,
     Column,
     Modal,
@@ -11,41 +10,73 @@ import {
     IconButton,
     LoadingOverlay,
     EmptyState,
-    MobileCardList
+    MobileCardList,
+    Button,
+    Select,
+    Input,
+    toast
 } from '../../ui';
 import * as DataService from '../../../services/dataService';
 import type { CompletedSession } from '../../../services/dataService';
+import { useGymData } from '../../../context/GymContext';
 
 interface SessionHistoryProps {
-    studentId?: string; // If provided, filters by specific student (Student View). If null, shows all (Coach View)
+    studentId?: string;
 }
 
 const SessionHistory: React.FC<SessionHistoryProps> = ({ studentId }) => {
+    const { students } = useGymData();
+    const [selectedStudentId, setSelectedStudentId] = useState(studentId || '');
+    const [dateFrom, setDateFrom] = useState('');
+    const [dateTo, setDateTo] = useState('');
     const [sessions, setSessions] = useState<CompletedSession[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [searchTerm, setSearchTerm] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const [hasSearched, setHasSearched] = useState(false);
     const [selectedSession, setSelectedSession] = useState<CompletedSession | null>(null);
 
     useEffect(() => {
-        loadSessions();
-    }, [studentId]); // Reload if ID changes
+        if (studentId) {
+            setSelectedStudentId(studentId);
+            handleSearch();
+        }
+    }, [studentId]);
 
-    const loadSessions = async () => {
+    const handleSearch = useCallback(async () => {
         setIsLoading(true);
+        setHasSearched(true);
         try {
-            const data = await DataService.getCompletedSessions(studentId);
-            setSessions(data);
+            const data = await DataService.getCompletedSessions(selectedStudentId || undefined);
+
+            let filtered = data;
+            if (dateFrom) {
+                const from = new Date(dateFrom);
+                from.setHours(0, 0, 0, 0);
+                filtered = filtered.filter(s => new Date(s.date) >= from);
+            }
+            if (dateTo) {
+                const to = new Date(dateTo);
+                to.setHours(23, 59, 59, 999);
+                filtered = filtered.filter(s => new Date(s.date) <= to);
+            }
+
+            setSessions(filtered);
         } catch (error) {
             console.error("Error loading session history:", error);
-            // toast.error("Error al cargar historial"); // Optional: avoid spamming toast on mount if frequent
+            toast.error("Error al cargar historial");
         } finally {
             setIsLoading(false);
         }
+    }, [selectedStudentId, dateFrom, dateTo]);
+
+    const handleClear = () => {
+        setDateFrom('');
+        setDateTo('');
+        if (!studentId) setSelectedStudentId('');
+        setSessions([]);
+        setHasSearched(false);
     };
 
-    const filteredSessions = sessions.filter(s =>
-        s.studentName.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredSessions = sessions;
 
     const formatDate = (date: Date) => {
         return new Intl.DateTimeFormat('es-CL', {
@@ -99,21 +130,60 @@ const SessionHistory: React.FC<SessionHistoryProps> = ({ studentId }) => {
         <div className="space-y-6 animate-in fade-in">
             <PageHeader
                 title="Historial de Entrenos"
-                subtitle={`${sessions.length} sesiones completadas`}
+                subtitle={hasSearched ? `${sessions.length} sesiones encontradas` : 'Filtra y busca sesiones'}
             />
 
-            <SearchInput
-                value={searchTerm}
-                onValueChange={setSearchTerm}
-                placeholder="Buscar por nombre de alumno..."
-            />
+            {/* FILTERS */}
+            <Card className="p-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                    {!studentId && (
+                        <Select
+                            label="Alumno"
+                            value={selectedStudentId}
+                            onChange={e => setSelectedStudentId(e.target.value)}
+                        >
+                            <option value="">-- Todos los alumnos --</option>
+                            {students.map(s => (
+                                <option key={s.id} value={s.id}>{s.name}</option>
+                            ))}
+                        </Select>
+                    )}
+                    <Input
+                        label="Desde"
+                        type="date"
+                        value={dateFrom}
+                        onChange={e => setDateFrom(e.target.value)}
+                    />
+                    <Input
+                        label="Hasta"
+                        type="date"
+                        value={dateTo}
+                        onChange={e => setDateTo(e.target.value)}
+                    />
+                    <div className="flex gap-2">
+                        <Button onClick={handleSearch} disabled={isLoading}>
+                            <Search size={18} />
+                            Buscar
+                        </Button>
+                        <Button variant="ghost" onClick={handleClear}>
+                            <RotateCcw size={18} />
+                        </Button>
+                    </div>
+                </div>
+            </Card>
 
+            {/* RESULTS */}
             {isLoading ? (
-                <LoadingOverlay message="Cargando historial..." />
+                <LoadingOverlay message="Buscando sesiones..." />
+            ) : !hasSearched ? (
+                <EmptyState
+                    icon={Search}
+                    message="Selecciona un alumno y rango de fechas para buscar."
+                />
             ) : filteredSessions.length === 0 ? (
                 <EmptyState
                     icon={Dumbbell}
-                    message="No hay sesiones completadas todavía."
+                    message="No se encontraron sesiones con esos filtros."
                 />
             ) : (
                 <>
@@ -166,7 +236,6 @@ const SessionHistory: React.FC<SessionHistoryProps> = ({ studentId }) => {
             >
                 {selectedSession && (
                     <div className="space-y-4">
-                        {/* Stats Summary */}
                         <div className="grid grid-cols-3 gap-3">
                             <Card className="text-center p-3">
                                 <div className="text-2xl font-bold text-blue-500">{selectedSession.exerciseCount}</div>
@@ -182,7 +251,6 @@ const SessionHistory: React.FC<SessionHistoryProps> = ({ studentId }) => {
                             </Card>
                         </div>
 
-                        {/* Exercises Breakdown */}
                         <div className="space-y-3">
                             <h4 className="font-bold text-sm text-slate-500 uppercase">Detalle por Ejercicio</h4>
                             {selectedSession.exercises.map((ex, idx) => (

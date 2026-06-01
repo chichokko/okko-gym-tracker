@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { Planificacion, Routine, RoutineExercise, User } from '../../../types';
-import { Card, Button, Input, IconButton, Select, PageHeader, toast, Badge } from '../../ui';
-import { Save, Plus, Trash2, ArrowLeft, Loader2, Download, Printer, Edit2 } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Planificacion, Routine, RoutineExercise, Exercise } from '../../../types';
+import { Card, Button, Input, IconButton, Select, PageHeader, toast, Badge, Modal } from '../../ui';
+import { Save, Plus, Trash2, ArrowLeft, Loader2, Download, Edit2, Search } from 'lucide-react';
 import * as DataService from '../../../services/dataService';
 import { useGymData } from '../../../context/GymContext';
 import generatePDF from './PlanificacionPDF';
@@ -9,10 +9,11 @@ import generatePDF from './PlanificacionPDF';
 interface PlanificacionBuilderProps {
   initialPlan: Planificacion;
   onClose: (needsRefresh: boolean) => void;
+  readOnly?: boolean;
 }
 
-const PlanificacionBuilder: React.FC<PlanificacionBuilderProps> = ({ initialPlan, onClose }) => {
-  const { exercises, students } = useGymData();
+const PlanificacionBuilder: React.FC<PlanificacionBuilderProps> = ({ initialPlan, onClose, readOnly = false }) => {
+  const { exercises, students, refreshExercises } = useGymData();
   const [plan, setPlan] = useState<Planificacion>(initialPlan);
   const [isSavingHeader, setIsSavingHeader] = useState(false);
   const [needsRefresh, setNeedsRefresh] = useState(false);
@@ -20,6 +21,15 @@ const PlanificacionBuilder: React.FC<PlanificacionBuilderProps> = ({ initialPlan
   // State for the Day/Routine being actively edited
   const [editingDay, setEditingDay] = useState<Routine | null>(null);
   const [isSavingDay, setIsSavingDay] = useState(false);
+
+  // State for exercise picker modal
+  const [exercisePickerOpen, setExercisePickerOpen] = useState(false);
+  const [pickerTargetIdx, setPickerTargetIdx] = useState<number | null>(null);
+  const [exSearchTerm, setExSearchTerm] = useState('');
+  const [isCreatingExercise, setIsCreatingExercise] = useState(false);
+  const [newExName, setNewExName] = useState('');
+  const [newExMuscle, setNewExMuscle] = useState('');
+  const [newExAccessory, setNewExAccessory] = useState('');
 
   // Refetch plan data to get days with full routine exercises
   const refetchPlan = async () => {
@@ -154,6 +164,48 @@ const PlanificacionBuilder: React.FC<PlanificacionBuilderProps> = ({ initialPlan
     setIsSavingDay(false);
   };
   
+  const filteredExercises = useMemo(() => {
+    if (!exSearchTerm) return exercises;
+    const q = exSearchTerm.toLowerCase();
+    return exercises.filter(e =>
+      e.name.toLowerCase().includes(q) ||
+      e.muscleGroup.toLowerCase().includes(q) ||
+      (e.accessory && e.accessory.toLowerCase().includes(q))
+    );
+  }, [exercises, exSearchTerm]);
+
+  const handleSelectExercise = (exerciseId: string) => {
+    if (pickerTargetIdx !== null) {
+      updateExerciseLine(pickerTargetIdx, 'exerciseId', exerciseId);
+    }
+    setExercisePickerOpen(false);
+    setPickerTargetIdx(null);
+    setExSearchTerm('');
+  };
+
+  const handleCreateExercise = async () => {
+    if (!newExName.trim() || !newExMuscle.trim()) {
+      toast.error('Nombre y grupo muscular son obligatorios');
+      return;
+    }
+    setIsCreatingExercise(true);
+    const success = await DataService.saveExercise({
+      name: newExName.trim(),
+      muscleGroup: newExMuscle.trim(),
+      accessory: newExAccessory.trim() || undefined
+    });
+    if (success) {
+      toast.success('Ejercicio creado');
+      setNewExName('');
+      setNewExMuscle('');
+      setNewExAccessory('');
+      await refreshExercises();
+    } else {
+      toast.error('Error al crear ejercicio');
+    }
+    setIsCreatingExercise(false);
+  };
+
   const handleExportPDF = async () => {
      generatePDF(plan, exercises, students);
   };
@@ -185,11 +237,13 @@ const PlanificacionBuilder: React.FC<PlanificacionBuilderProps> = ({ initialPlan
             value={plan.name}
             onChange={e => setPlan({ ...plan, name: e.target.value })}
             required
+            disabled={readOnly}
           />
           <Select
             label="Tipo"
             value={plan.type}
             onChange={e => setPlan({ ...plan, type: e.target.value })}
+            disabled={readOnly}
           >
             <option value="Microciclo">Microciclo</option>
             <option value="Mesociclo">Mesociclo</option>
@@ -199,11 +253,13 @@ const PlanificacionBuilder: React.FC<PlanificacionBuilderProps> = ({ initialPlan
             label="Duración (Ej: 4 semanas)"
             value={plan.duration || ''}
             onChange={e => setPlan({ ...plan, duration: e.target.value })}
+            disabled={readOnly}
           />
           <Select
             label="Alumno Asignado (Opcional)"
             value={plan.studentId || ''}
             onChange={e => setPlan({ ...plan, studentId: e.target.value })}
+            disabled={readOnly}
           >
             <option value="">-- Ninguno (Plantilla) --</option>
             {students.map(s => (
@@ -215,16 +271,19 @@ const PlanificacionBuilder: React.FC<PlanificacionBuilderProps> = ({ initialPlan
                label="Descripción / Objetivos"
                value={plan.description || ''}
                onChange={e => setPlan({ ...plan, description: e.target.value })}
+               disabled={readOnly}
              />
           </div>
         </div>
         
-        <div className="mt-4 flex justify-end">
-          <Button onClick={handleSaveHeader} disabled={isSavingHeader}>
-             {isSavingHeader ? <Loader2 className="animate-spin" /> : <Save size={18} />}
-             <span className="ml-2">{plan.id ? 'Actualizar Cabecera' : 'Guardar y Continuar'}</span>
-          </Button>
-        </div>
+        {!readOnly && (
+          <div className="mt-4 flex justify-end">
+            <Button onClick={handleSaveHeader} disabled={isSavingHeader}>
+               {isSavingHeader ? <Loader2 className="animate-spin" /> : <Save size={18} />}
+               <span className="ml-2">{plan.id ? 'Actualizar Cabecera' : 'Guardar y Continuar'}</span>
+            </Button>
+          </div>
+        )}
       </Card>
 
       {/* DAYS / ROUTINES MANAGER */}
@@ -232,31 +291,35 @@ const PlanificacionBuilder: React.FC<PlanificacionBuilderProps> = ({ initialPlan
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-lg font-bold">Días de Entrenamiento</h2>
-            <Button size="sm" onClick={handleAddNewDay}>
-              <Plus size={16} /> Añadir Día
-            </Button>
+            {!readOnly && (
+              <Button size="sm" onClick={handleAddNewDay}>
+                <Plus size={16} /> Añadir Día
+              </Button>
+            )}
           </div>
           
           {plan.days.length === 0 ? (
             <div className="p-8 text-center text-slate-500 bg-white dark:bg-slate-900 rounded-xl border border-dashed border-slate-300 dark:border-slate-700">
-              Aún no hay días configurados. Haz clic en "Añadir Día" para comenzar.
+              Aún no hay días configurados.
             </div>
           ) : (
             <div className="grid gap-3">
               {plan.days.map((dayLine, i) => (
-                 <Card key={dayLine.id} className="p-4 flex justify-between items-center hover:border-blue-500">
+                 <Card key={dayLine.id} className="p-4 flex justify-between items-center">
                     <div>
                       <h4 className="font-bold">Día {i+1}: {dayLine.routine?.name || 'Sin nombre'}</h4>
                       <p className="text-sm text-slate-500">{dayLine.routine?.exercises?.length || 0} ejercicios</p>
                     </div>
-                    <div className="flex gap-2">
-                      <Button variant="ghost" size="sm" onClick={() => handleEditDay(dayLine)}>
-                        <Edit2 size={14} className="mr-1" /> Editar
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => handleDeleteDay(dayLine)} className="text-red-500 hover:text-red-700">
-                        <Trash2 size={14} />
-                      </Button>
-                    </div>
+                    {!readOnly && (
+                      <div className="flex gap-2">
+                        <Button variant="ghost" size="sm" onClick={() => handleEditDay(dayLine)}>
+                          <Edit2 size={14} className="mr-1" /> Editar
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleDeleteDay(dayLine)} className="text-red-500 hover:text-red-700">
+                          <Trash2 size={14} />
+                        </Button>
+                      </div>
+                    )}
                  </Card>
               ))}
             </div>
@@ -265,7 +328,7 @@ const PlanificacionBuilder: React.FC<PlanificacionBuilderProps> = ({ initialPlan
       )}
 
       {/* DAY / ROUTINE EDITOR OVERLAY */}
-      {editingDay && (
+      {!readOnly && editingDay && (
         <Card className="p-0 overflow-hidden border-blue-200 dark:border-blue-900 shadow-lg">
           <div className="bg-slate-50 dark:bg-slate-800/50 p-4 border-b border-gray-100 dark:border-slate-800 flex justify-between items-center">
              <h3 className="font-bold text-lg">Configurar {editingDay.name || 'Día'}</h3>
@@ -291,13 +354,19 @@ const PlanificacionBuilder: React.FC<PlanificacionBuilderProps> = ({ initialPlan
                    </div>
                    
                    <div className="md:col-span-12">
-                     <Select
-                       label="Ejercicio"
-                       value={ex.exerciseId}
-                       onChange={e => updateExerciseLine(idx, 'exerciseId', e.target.value)}
-                     >
-                       {exercises.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
-                     </Select>
+                      <div className="flex flex-col gap-1 w-full">
+                        <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Ejercicio</label>
+                        <button
+                          type="button"
+                          onClick={() => { setPickerTargetIdx(idx); setExercisePickerOpen(true); }}
+                          className="h-12 px-4 rounded-lg bg-gray-50 border border-gray-200 text-left text-slate-900 hover:border-blue-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white dark:focus:border-blue-500 dark:focus:ring-blue-900 flex items-center gap-2"
+                        >
+                          <Search size={16} className="text-slate-400 flex-shrink-0" />
+                          <span className={ex.exerciseId ? '' : 'text-slate-400'}>
+                            {exercises.find(e => e.id === ex.exerciseId)?.name || 'Seleccionar ejercicio...'}
+                          </span>
+                        </button>
+                      </div>
                    </div>
                    
                    <div className="md:col-span-3">
@@ -332,6 +401,82 @@ const PlanificacionBuilder: React.FC<PlanificacionBuilderProps> = ({ initialPlan
           </div>
         </Card>
       )}
+
+      {/* EXERCISE PICKER MODAL */}
+      <Modal
+        isOpen={exercisePickerOpen}
+        onClose={() => { setExercisePickerOpen(false); setPickerTargetIdx(null); setExSearchTerm(''); }}
+        title="Seleccionar Ejercicio"
+        size="lg"
+      >
+        <div className="space-y-4">
+          <Input
+            placeholder="Buscar por nombre, grupo muscular o accesorio..."
+            value={exSearchTerm}
+            onChange={e => setExSearchTerm(e.target.value)}
+          />
+
+          <div className="max-h-48 overflow-y-auto space-y-1 border border-slate-200 dark:border-slate-700 rounded-lg">
+            {filteredExercises.length === 0 ? (
+              <p className="p-4 text-center text-slate-500 text-sm">No se encontraron ejercicios</p>
+            ) : (
+              filteredExercises.map(e => {
+                const selected = pickerTargetIdx !== null && editingDay?.exercises[pickerTargetIdx]?.exerciseId === e.id;
+                return (
+                  <button
+                    key={e.id}
+                    type="button"
+                    onClick={() => handleSelectExercise(e.id)}
+                    className={`w-full text-left px-4 py-3 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors border-b border-slate-100 dark:border-slate-800 last:border-0 ${
+                      selected ? 'bg-blue-50 dark:bg-blue-900/20 ring-1 ring-blue-300' : ''
+                    }`}
+                  >
+                    <div>
+                      <span className="font-medium text-sm">{e.name}</span>
+                      <span className="text-xs text-slate-500 ml-2">{e.muscleGroup}</span>
+                    </div>
+                    {e.accessory && (
+                      <Badge color="bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                        {e.accessory}
+                      </Badge>
+                    )}
+                  </button>
+                );
+              })
+            )}
+          </div>
+
+          <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
+            <h4 className="text-sm font-semibold mb-3">Crear nuevo ejercicio</h4>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+              <Input
+                placeholder="Nombre"
+                value={newExName}
+                onChange={e => setNewExName(e.target.value)}
+              />
+              <Input
+                placeholder="Grupo muscular"
+                value={newExMuscle}
+                onChange={e => setNewExMuscle(e.target.value)}
+              />
+              <Input
+                placeholder="Accesorio (opcional)"
+                value={newExAccessory}
+                onChange={e => setNewExAccessory(e.target.value)}
+              />
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleCreateExercise}
+              disabled={isCreatingExercise}
+            >
+              {isCreatingExercise ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+              Crear y seleccionar
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
     </div>
   );

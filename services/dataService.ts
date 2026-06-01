@@ -321,15 +321,14 @@ export const saveRoutine = async (routine: Routine): Promise<Routine | null> => 
 
 // --- PLANIFICACION ---
 
-export const getPlanificaciones = async (): Promise<any[]> => {
-  // Get persona ID for the current auth user
+export const getPlanificaciones = async (asStudent?: boolean): Promise<any[]> => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return [];
 
   const { data: persona } = await supabase.from('persona').select('id').eq('user_id', user.id).single();
   if (!persona) return [];
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('planificacion')
     .select(`
       *,
@@ -344,8 +343,15 @@ export const getPlanificaciones = async (): Promise<any[]> => {
         )
       )
     `)
-    .eq('creador_id', persona.id)
     .order('created_at', { ascending: false });
+
+  if (asStudent) {
+    query = query.eq('alumno_id', persona.id);
+  } else {
+    query = query.eq('creador_id', persona.id);
+  }
+
+  const { data, error } = await query;
   
   if (error) {
     await handleAuthError(error);
@@ -455,6 +461,21 @@ export const removeRoutineFromPlan = async (rutinaPlanificacionId: string): Prom
 // --- SESIONES ---
 
 export const getActiveSessions = async (): Promise<Session[]> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data: persona } = await supabase.from('persona').select('id').eq('user_id', user.id).single();
+  if (!persona) return [];
+
+  const { data: relations } = await supabase
+    .from('coach_alumno')
+    .select('id_alumno')
+    .eq('id_coach', persona.id)
+    .eq('activo', true);
+
+  const studentIds = relations?.map(r => r.id_alumno) || [];
+  if (studentIds.length === 0) return [];
+
   const { data, error } = await supabase
     .from('sesion')
     .select(`
@@ -466,6 +487,7 @@ export const getActiveSessions = async (): Promise<Session[]> => {
       )
     `)
     .eq('activo', true)
+    .in('alumno_id', studentIds)
     .order('fecha', { ascending: false });
 
   if (error) {
@@ -635,6 +657,19 @@ export interface CompletedSession {
   }[];
 }
 
+export const deleteSession = async (sessionId: string): Promise<boolean> => {
+  const { error } = await supabase
+    .from('sesion')
+    .delete()
+    .eq('id', sessionId);
+
+  if (error) {
+    await handleAuthError(error);
+    return false;
+  }
+  return true;
+};
+
 export const getCompletedSessions = async (studentId?: string): Promise<CompletedSession[]> => {
   let query = supabase
     .from('sesion')
@@ -655,6 +690,22 @@ export const getCompletedSessions = async (studentId?: string): Promise<Complete
 
   if (studentId) {
     query = query.eq('alumno_id', studentId);
+  } else {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: persona } = await supabase.from('persona').select('id').eq('user_id', user.id).single();
+      if (persona) {
+        const { data: relations } = await supabase
+          .from('coach_alumno')
+          .select('id_alumno')
+          .eq('id_coach', persona.id)
+          .eq('activo', true);
+        const studentIds = relations?.map(r => r.id_alumno) || [];
+        if (studentIds.length > 0) {
+          query = query.in('alumno_id', studentIds);
+        }
+      }
+    }
   }
 
   const { data, error } = await query;

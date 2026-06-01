@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, Button, PageHeader, EmptyState, LoadingOverlay } from '../../ui';
-import { Plus, Users } from 'lucide-react';
+import { Plus, Users, X } from 'lucide-react';
 import { ActiveSession } from './types';
 
 interface SessionDashboardProps {
@@ -8,6 +8,7 @@ interface SessionDashboardProps {
     isLoading: boolean;
     onStartNew: () => void;
     onSelectSession: (sessionId: string) => void;
+    onDiscardSession: (sessionId: string) => void;
 }
 
 const SessionDashboard: React.FC<SessionDashboardProps> = ({
@@ -15,6 +16,7 @@ const SessionDashboard: React.FC<SessionDashboardProps> = ({
     isLoading,
     onStartNew,
     onSelectSession,
+    onDiscardSession,
 }) => {
     if (isLoading) {
         return <LoadingOverlay message="Cargando sesiones..." />;
@@ -53,11 +55,18 @@ const SessionDashboard: React.FC<SessionDashboardProps> = ({
                         return (
                             <Card
                                 key={session.internalId}
-                                className="relative overflow-hidden cursor-pointer hover:border-blue-500 transition-all group"
-                                onClick={() => onSelectSession(session.internalId)}
+                                className="relative overflow-hidden group"
                             >
                                 <div className="absolute top-0 left-0 w-1 h-full bg-blue-500" />
-                                <div className="pl-3 flex justify-between items-start">
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); onDiscardSession(session.internalId); }}
+                                    className="absolute top-2 right-2 p-1 rounded-full bg-red-50 text-red-400 hover:bg-red-100 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    title="Descartar sesión"
+                                >
+                                    <X size={14} />
+                                </button>
+                                <div className="pl-3 cursor-pointer" onClick={() => onSelectSession(session.internalId)}>
+                                <div className="flex justify-between items-start">
                                     <div className="flex items-center gap-3">
                                         <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-bold text-slate-600 dark:text-slate-300">
                                             {session.student.name[0]}
@@ -77,6 +86,7 @@ const SessionDashboard: React.FC<SessionDashboardProps> = ({
                                     <span>{session.exercises.length} Ejercicios</span>
                                     <span>{setsStarted} / {totalSets} Series iniciadas</span>
                                 </div>
+                            </div>
                             </Card>
                         );
                     })}

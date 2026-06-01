@@ -1,5 +1,5 @@
-import React from 'react';
-import { Loader2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export interface Column<T> {
     key: string;
@@ -15,6 +15,7 @@ interface DataTableProps<T> {
     isLoading?: boolean;
     emptyMessage?: string;
     renderActions?: (item: T) => React.ReactNode;
+    pageSize?: number;
 }
 
 export function DataTable<T>({
@@ -23,8 +24,20 @@ export function DataTable<T>({
     keyExtractor,
     isLoading = false,
     emptyMessage = 'No hay datos disponibles.',
-    renderActions
+    renderActions,
+    pageSize = 10
 }: DataTableProps<T>) {
+    const [currentPage, setCurrentPage] = useState(1);
+    const totalPages = Math.max(1, Math.ceil(data.length / pageSize));
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [data.length]);
+
+    const paginatedData = data.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+    const startEntry = (currentPage - 1) * pageSize + 1;
+    const endEntry = Math.min(currentPage * pageSize, data.length);
+
     if (isLoading) {
         return (
             <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
@@ -55,7 +68,7 @@ export function DataTable<T>({
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
-                        {data.map((item) => (
+                        {paginatedData.map((item) => (
                             <tr
                                 key={keyExtractor(item)}
                                 className="hover:bg-gray-50 dark:hover:bg-slate-800/30 transition-colors group"
@@ -86,6 +99,41 @@ export function DataTable<T>({
                     </tbody>
                 </table>
             </div>
+
+            {data.length > pageSize && (
+                <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 dark:border-slate-800 text-sm text-slate-500">
+                    <span>{startEntry}-{endEntry} de {data.length}</span>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            disabled={currentPage === 1}
+                            className="p-1 rounded hover:bg-gray-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none"
+                        >
+                            <ChevronLeft size={18} />
+                        </button>
+                        {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                            <button
+                                key={page}
+                                onClick={() => setCurrentPage(page)}
+                                className={`w-8 h-8 rounded text-sm font-medium transition-colors ${
+                                    page === currentPage
+                                        ? 'bg-blue-500 text-white'
+                                        : 'hover:bg-gray-100 dark:hover:bg-slate-800'
+                                }`}
+                            >
+                                {page}
+                            </button>
+                        ))}
+                        <button
+                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                            disabled={currentPage === totalPages}
+                            className="p-1 rounded hover:bg-gray-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none"
+                        >
+                            <ChevronRight size={18} />
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

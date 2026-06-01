@@ -1,20 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { Planificacion } from '../../../types';
+import { Planificacion, User, UserRole } from '../../../types';
 import { Card, Button, PageHeader, EmptyState, LoadingOverlay, Badge } from '../../ui';
-import { Plus, CalendarDays, ChevronRight, Download, User } from 'lucide-react';
+import { Plus, CalendarDays, ChevronRight, Download, Eye } from 'lucide-react';
 import * as DataService from '../../../services/dataService';
 import PlanificacionBuilder from './PlanificacionBuilder';
 import { useSession } from '../../../context/SessionContext';
 
-const PlanificacionManager: React.FC = () => {
+interface PlanificacionManagerProps {
+  user: User;
+}
+
+const PlanificacionManager: React.FC<PlanificacionManagerProps> = ({ user }) => {
   const { session } = useSession();
   const [planes, setPlanes] = useState<Planificacion[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [viewingPlan, setViewingPlan] = useState<Planificacion | null>(null);
   const [editingPlan, setEditingPlan] = useState<Planificacion | null>(null);
+
+  const isStudent = user.role === UserRole.STUDENT;
 
   const fetchPlanes = async () => {
     setIsLoading(true);
-    const data = await DataService.getPlanificaciones();
+    const data = await DataService.getPlanificaciones(isStudent);
     setPlanes(data);
     setIsLoading(false);
   };
@@ -40,38 +47,55 @@ const PlanificacionManager: React.FC = () => {
     }
   };
 
+  const handleViewPlan = (plan: Planificacion) => {
+    setViewingPlan(plan);
+  };
+
+  const handleEditPlan = (plan: Planificacion) => {
+    setEditingPlan(plan);
+  };
+
   if (isLoading) return <LoadingOverlay message="Cargando planificaciones..." />;
 
   if (editingPlan) {
     return <PlanificacionBuilder initialPlan={editingPlan} onClose={handleCloseBuilder} />;
   }
 
+  if (viewingPlan) {
+    return (
+      <PlanificacionBuilder
+        initialPlan={viewingPlan}
+        onClose={() => { setViewingPlan(null); fetchPlanes(); }}
+        readOnly
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Planificación"
-        subtitle="Gestiona los macro y mesociclos de tus alumnos"
-        action={
+        subtitle={isStudent ? 'Planificaciones asignadas a ti' : 'Gestiona los macro y mesociclos de tus alumnos'}
+        action={!isStudent && (
           <Button onClick={handleCreateNew}>
             <Plus size={20} /> Crear Plan
           </Button>
-        }
+        )}
       />
 
       {planes.length === 0 ? (
         <EmptyState
           icon={CalendarDays}
-          message="No hay planificaciones creadas."
-          action={
-            <Button variant="ghost" onClick={handleCreateNew} className="text-blue-500">
-              Comenzar a planificar
-            </Button>
-          }
+          message={isStudent ? 'No tienes planificaciones asignadas.' : 'No hay planificaciones creadas.'}
         />
       ) : (
         <div className="grid grid-cols-1 gap-4">
           {planes.map(plan => (
-            <Card key={plan.id} className="flex flex-col md:flex-row justify-between hover:border-blue-500 transition-colors cursor-pointer group" onClick={() => setEditingPlan(plan)}>
+            <Card
+              key={plan.id}
+              className="flex flex-col md:flex-row justify-between hover:border-blue-500 transition-colors cursor-pointer group"
+              onClick={() => isStudent ? handleViewPlan(plan) : handleEditPlan(plan)}
+            >
               <div className="flex-1">
                 <div className="flex justify-between items-start mb-2">
                   <h3 className="font-bold text-xl">{plan.name}</h3>
@@ -92,7 +116,7 @@ const PlanificacionManager: React.FC = () => {
               </div>
               
               <div className="mt-4 md:mt-0 md:ml-4 pt-4 md:pt-0 border-t md:border-t-0 md:border-l border-gray-100 dark:border-slate-800 flex justify-end md:justify-center items-center md:pl-4 text-blue-500 font-medium text-sm gap-1 group-hover:gap-2 transition-all">
-                Ver Detalles <ChevronRight size={16} />
+                {isStudent ? 'Ver' : 'Editar'} <Eye size={16} />
               </div>
             </Card>
           ))}

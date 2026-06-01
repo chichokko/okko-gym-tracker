@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User } from '../../../types';
-import { Card, Badge, LoadingOverlay, EmptyState, Select } from '../../ui';
-import { Calendar, TrendingUp, Dumbbell, Activity, Trophy } from 'lucide-react';
+import { Card, Badge, LoadingOverlay, EmptyState, Modal, Input, Button } from '../../ui';
+import { Calendar, TrendingUp, Dumbbell, Activity, Trophy, Search } from 'lucide-react';
 import * as DataService from '../../../services/dataService';
 import { processStats, getExerciseProgress, getAllPerformedExercises, StudentStats } from '../../../utils/gymMetrics';
 import { SafeChart } from './SafeChart';
@@ -19,6 +19,12 @@ const StudentDashboard: React.FC<{ user: User }> = ({ user }) => {
   const [selectedExercise, setSelectedExercise] = useState<string>('');
   const [exerciseOptions, setExerciseOptions] = useState<string[]>([]);
   const [chartMode, setChartMode] = useState<'1rm' | 'volume' | 'rpe'>('1rm');
+  const [exercisePickerOpen, setExercisePickerOpen] = useState(false);
+  const [exSearchTerm, setExSearchTerm] = useState('');
+
+  const filteredExercises = !exSearchTerm
+    ? exerciseOptions
+    : exerciseOptions.filter(e => e.toLowerCase().includes(exSearchTerm.toLowerCase()));
 
   useEffect(() => {
     loadData();
@@ -117,13 +123,14 @@ const StudentDashboard: React.FC<{ user: User }> = ({ user }) => {
 
           <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
             <div className="w-full md:w-64">
-              <Select
-                value={selectedExercise}
-                onChange={(e) => setSelectedExercise(e.target.value)}
-                label="" // No label to save space
+              <button
+                type="button"
+                onClick={() => setExercisePickerOpen(true)}
+                className="h-12 w-full px-4 rounded-lg bg-gray-50 border border-gray-200 text-left hover:border-blue-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white dark:focus:border-blue-500 dark:focus:ring-blue-900 flex items-center gap-2"
               >
-                {exerciseOptions.map(ex => <option key={ex} value={ex}>{ex}</option>)}
-              </Select>
+                <Search size={16} className="text-slate-400 flex-shrink-0" />
+                <span className="text-sm truncate">{selectedExercise || 'Seleccionar ejercicio...'}</span>
+              </button>
             </div>
 
             <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg self-start">
@@ -265,6 +272,42 @@ const StudentDashboard: React.FC<{ user: User }> = ({ user }) => {
           ))}
         </div>
       </div>
+
+      {/* Exercise Picker Modal */}
+      <Modal
+        isOpen={exercisePickerOpen}
+        onClose={() => { setExercisePickerOpen(false); setExSearchTerm(''); }}
+        title="Seleccionar Ejercicio"
+        size="sm"
+      >
+        <div className="space-y-3">
+          <Input
+            placeholder="Buscar ejercicio..."
+            value={exSearchTerm}
+            onChange={e => setExSearchTerm(e.target.value)}
+          />
+          <div className="max-h-60 overflow-y-auto space-y-1">
+            {filteredExercises.length === 0 ? (
+              <p className="p-4 text-center text-slate-500 text-sm">No se encontraron ejercicios</p>
+            ) : (
+              filteredExercises.map(ex => (
+                <button
+                  key={ex}
+                  type="button"
+                  onClick={() => { setSelectedExercise(ex); setExercisePickerOpen(false); setExSearchTerm(''); }}
+                  className={`w-full text-left px-4 py-3 rounded-lg transition-colors border border-transparent ${
+                    selectedExercise === ex
+                      ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-300 font-medium'
+                      : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                  }`}
+                >
+                  {ex}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };
