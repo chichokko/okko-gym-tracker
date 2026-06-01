@@ -97,10 +97,13 @@ const PlanificacionManager: React.FC<PlanificacionManagerProps> = ({ user }) => 
               onClick={() => isStudent ? handleViewPlan(plan) : handleEditPlan(plan)}
             >
               <div className="flex-1">
-                <div className="flex justify-between items-start mb-2">
-                  <h3 className="font-bold text-xl">{plan.name}</h3>
-                  <Badge variant="primary">{plan.type}</Badge>
-                </div>
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="flex gap-2 items-center">
+                      <h3 className="font-bold text-xl">{plan.name}</h3>
+                      {plan.activo && <Badge color="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">Activa</Badge>}
+                    </div>
+                    <Badge variant="primary">{plan.type}</Badge>
+                  </div>
                 <p className="text-sm text-slate-500 dark:text-slate-400 mb-2">
                   {plan.description || 'Sin descripción'}
                 </p>

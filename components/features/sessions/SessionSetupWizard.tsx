@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, Button, IconButton, PageHeader, EmptyState, LoadingSpinner } from '../../ui';
 import { Plus, Check, ArrowLeft, Users } from 'lucide-react';
 import { useGymData } from '../../../context/GymContext';
+import * as DataService from '../../../services/dataService';
+import { Routine } from '../../../types';
 
 interface SessionSetupWizardProps {
     isLoading: boolean;
@@ -14,9 +16,25 @@ const SessionSetupWizard: React.FC<SessionSetupWizardProps> = ({
     onBack,
     onStart,
 }) => {
-    const { students, routines } = useGymData();
+    const { students } = useGymData();
     const [studentId, setStudentId] = useState('');
     const [routineId, setRoutineId] = useState('');
+    const [planRoutines, setPlanRoutines] = useState<Routine[]>([]);
+    const [loadingRoutines, setLoadingRoutines] = useState(false);
+
+    useEffect(() => {
+        if (!studentId) {
+            setPlanRoutines([]);
+            setRoutineId('');
+            return;
+        }
+        setRoutineId('');
+        setLoadingRoutines(true);
+        DataService.getActivePlanificacionRoutines(studentId)
+            .then(routines => setPlanRoutines(routines))
+            .catch(() => setPlanRoutines([]))
+            .finally(() => setLoadingRoutines(false));
+    }, [studentId]);
 
     const handleStart = () => {
         if (studentId) {
@@ -63,30 +81,40 @@ const SessionSetupWizard: React.FC<SessionSetupWizardProps> = ({
                 {studentId && (
                     <div className="animate-in fade-in">
                         <label className="text-sm font-bold text-slate-500 uppercase">2. Rutina</label>
-                        <div className="grid grid-cols-1 gap-2 mt-2">
-                            <div
-                                onClick={() => setRoutineId('')}
-                                className={`p-3 rounded-lg border cursor-pointer flex items-center gap-3 ${routineId === ''
-                                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                                        : 'border-gray-200 dark:border-slate-700'
-                                    }`}
-                            >
-                                <Plus size={18} /> Sin Rutina (Libre)
-                            </div>
-                            {routines.map(r => (
+                        {loadingRoutines ? (
+                            <div className="flex justify-center py-4"><LoadingSpinner size="sm" /></div>
+                        ) : (
+                            <div className="grid grid-cols-1 gap-2 mt-2">
                                 <div
-                                    key={r.id}
-                                    onClick={() => setRoutineId(r.id)}
-                                    className={`p-3 rounded-lg border cursor-pointer ${routineId === r.id
+                                    onClick={() => setRoutineId('')}
+                                    className={`p-3 rounded-lg border cursor-pointer flex items-center gap-3 ${routineId === ''
                                             ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
                                             : 'border-gray-200 dark:border-slate-700'
                                         }`}
                                 >
-                                    <div className="font-medium">{r.name}</div>
-                                    <div className="text-xs text-slate-500">{r.exercises.length} ejercicios</div>
+                                    <Plus size={18} /> Rutina Libre
                                 </div>
-                            ))}
-                        </div>
+                                {planRoutines.length === 0 ? (
+                                    <p className="text-sm text-slate-400 text-center py-2">
+                                        No hay planificación activa con rutinas.
+                                    </p>
+                                ) : (
+                                    planRoutines.map(r => (
+                                        <div
+                                            key={r.id}
+                                            onClick={() => setRoutineId(r.id)}
+                                            className={`p-3 rounded-lg border cursor-pointer ${routineId === r.id
+                                                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                                                    : 'border-gray-200 dark:border-slate-700'
+                                                }`}
+                                        >
+                                            <div className="font-medium">{r.name}</div>
+                                            <div className="text-xs text-slate-500">{r.exercises.length} ejercicios</div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        )}
                     </div>
                 )}
 

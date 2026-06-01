@@ -90,6 +90,7 @@ export interface Planificacion {
   duration?: string;
   studentId?: string;
   createdAt?: Date;
+  activo?: boolean;
   days: RutinaPlanificacion[];
 }
 

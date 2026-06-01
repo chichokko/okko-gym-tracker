@@ -4,7 +4,6 @@ import { Planificacion, Exercise, User } from '../../../types';
 import { supabase } from '../../../lib/supabaseClient';
 
 export default async function generatePDF(plan: Planificacion, exercises: Exercise[], students: User[]) {
-  // 1. Get current coach data for logo
   let logoSrc = '';
   let coachName = 'Entrenador';
   try {
@@ -26,117 +25,138 @@ export default async function generatePDF(plan: Planificacion, exercises: Exerci
   const student = students.find(s => s.id === plan.studentId);
   const studentName = student ? student.name : 'Plantilla General';
 
-  // 2. Create a temporary container, fully isolated from page CSS
   const container = document.createElement('div');
   container.style.position = 'absolute';
   container.style.left = '-9999px';
   container.style.top = '-9999px';
   container.style.width = '800px';
   container.style.backgroundColor = '#ffffff';
-  container.style.padding = '40px';
-  container.style.color = '#000000';
-  container.style.fontFamily = 'system-ui, -apple-system, sans-serif';
+  container.style.padding = '0';
+  container.style.color = '#1e293b';
+  container.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
   container.style.all = 'initial';
-  // Re-apply needed styles after all:initial
   container.style.position = 'absolute';
   container.style.left = '-9999px';
   container.style.top = '-9999px';
   container.style.width = '800px';
   container.style.backgroundColor = '#ffffff';
-  container.style.padding = '40px';
-  container.style.color = '#000000';
-  container.style.fontFamily = 'system-ui, -apple-system, sans-serif';
+  container.style.padding = '0';
+  container.style.color = '#1e293b';
+  container.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
   container.style.colorScheme = 'light';
   document.body.appendChild(container);
 
-  // 3. Build HTML structure
-  let html = `
-    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px;">
-      <div>
-        <h1 style="margin: 0; font-size: 28px; color: #0f172a;">${plan.name}</h1>
-        <p style="margin: 5px 0 0; color: #64748b; font-size: 16px;">${plan.type} • Duración: ${plan.duration || 'N/A'}</p>
-        <p style="margin: 5px 0 0; font-weight: bold; font-size: 16px;">Alumno: ${studentName}</p>
-      </div>
+  // Header
+  let headerHtml = `
+    <div style="border-bottom: 2px solid #e2e8f0; padding: 32px 40px 20px; margin-bottom: 24px;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+        <div>
+          <div style="font-size: 13px; font-weight: 600; color: #3b82f6; margin-bottom: 4px;">${plan.type}</div>
+          <h1 style="margin: 0; font-size: 28px; font-weight: 800; color: #0f172a;">${plan.name}</h1>
+          <p style="margin: 6px 0 0; color: #64748b; font-size: 14px;">
+            ${plan.duration ? `Duración: ${plan.duration} • ` : ''}Alumno: ${studentName}
+          </p>
+        </div>
+        <div style="text-align: right; flex-shrink: 0; margin-left: 24px;">
   `;
 
   if (logoSrc) {
-    html += `
-      <div style="text-align: center;">
-        <img src="${logoSrc}" style="max-width: 120px; max-height: 80px; object-fit: contain;" crossorigin="anonymous" />
-        <p style="margin: 5px 0 0; font-size: 12px; color: #64748b;">${coachName}</p>
-      </div>
+    headerHtml += `
+          <img src="${logoSrc}" style="max-width: 100px; max-height: 60px; object-fit: contain;" crossorigin="anonymous" />
+          <p style="margin: 6px 0 0; font-size: 12px; color: #94a3b8;">${coachName}</p>
     `;
   } else {
-    html += `
-      <div style="text-align: center;">
-        <div style="width: 80px; height: 80px; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: bold; color: #3b82f6;">
-          ${coachName.charAt(0)}
-        </div>
-        <p style="margin: 5px 0 0; font-size: 12px; color: #64748b;">${coachName}</p>
-      </div>
+    headerHtml += `
+          <div style="width: 48px; height: 48px; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-left: auto;">
+            <span style="font-size: 20px; font-weight: 700; color: #3b82f6;">${coachName.charAt(0)}</span>
+          </div>
+          <p style="margin: 6px 0 0; font-size: 12px; color: #94a3b8;">${coachName}</p>
     `;
   }
 
-  html += `</div>`;
+  headerHtml += `</div></div></div>`;
 
+  // Description
+  let descHtml = '';
   if (plan.description) {
-    html += `
-      <div style="margin-bottom: 30px; padding: 15px; background-color: #f8fafc; border-radius: 8px;">
-        <h3 style="margin: 0 0 10px; font-size: 16px;">Objetivos / Descripción</h3>
-        <p style="margin: 0; color: #334155; line-height: 1.5;">${plan.description}</p>
+    descHtml = `
+      <div style="margin: 0 40px 28px; padding: 0 0 0 14px; border-left: 3px solid #3b82f6;">
+        <h3 style="margin: 0 0 6px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: #94a3b8;">Objetivos</h3>
+        <p style="margin: 0; color: #334155; font-size: 14px; line-height: 1.6;">${plan.description}</p>
       </div>
     `;
   }
 
   // Days
+  let daysHtml = '';
   plan.days.forEach((dayLine, i) => {
     const routine = dayLine.routine;
     if (!routine) return;
 
-    html += `
-      <div style="margin-bottom: 30px; page-break-inside: avoid;">
-        <h2 style="margin: 0 0 15px; font-size: 20px; color: #1e293b; border-bottom: 1px solid #cbd5e1; padding-bottom: 8px;">
+    daysHtml += `
+      <div style="margin: 0 40px 28px; page-break-inside: avoid;">
+        <h2 style="margin: 0 0 12px; font-size: 17px; font-weight: 700; color: #0f172a;">
           Día ${i + 1}: ${routine.name}
         </h2>
         
-        <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
           <thead>
-            <tr style="background-color: #f1f5f9; text-align: left;">
-              <th style="padding: 10px; border-bottom: 1px solid #cbd5e1;">Ejercicio</th>
-              <th style="padding: 10px; border-bottom: 1px solid #cbd5e1; text-align: center;">Series</th>
-              <th style="padding: 10px; border-bottom: 1px solid #cbd5e1; text-align: center;">Reps</th>
-              <th style="padding: 10px; border-bottom: 1px solid #cbd5e1; text-align: center;">Cadencia</th>
-              <th style="padding: 10px; border-bottom: 1px solid #cbd5e1; text-align: center;">Descanso</th>
-              <th style="padding: 10px; border-bottom: 1px solid #cbd5e1;">Método</th>
+            <tr style="background: #f8fafc;">
+              <th style="padding: 8px 12px; text-align: left; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; border-bottom: 1px solid #e2e8f0;">Ejercicio</th>
+              <th style="padding: 8px 12px; text-align: center; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; border-bottom: 1px solid #e2e8f0; width: 60px;">Series</th>
+              <th style="padding: 8px 12px; text-align: center; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; border-bottom: 1px solid #e2e8f0; width: 60px;">Reps</th>
+              <th style="padding: 8px 12px; text-align: center; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; border-bottom: 1px solid #e2e8f0; width: 70px;">Cadencia</th>
+              <th style="padding: 8px 12px; text-align: center; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; border-bottom: 1px solid #e2e8f0; width: 70px;">Descanso</th>
+              <th style="padding: 8px 12px; text-align: left; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; border-bottom: 1px solid #e2e8f0;">Método</th>
             </tr>
           </thead>
           <tbody>
     `;
 
-    routine.exercises.forEach(ex => {
+    routine.exercises.forEach((ex, exIdx) => {
       const exObj = exercises.find(e => e.id === ex.exerciseId);
       const exName = exObj ? exObj.name : 'Ejercicio Desconocido';
+      const bgColor = exIdx % 2 === 0 ? '#ffffff' : '#fafafa';
 
-      html += `
-        <tr>
-          <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-weight: 500;">${exName}</td>
-          <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: center;">${ex.sets}</td>
-          <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: center;">${ex.reps}</td>
-          <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: center; color: #64748b;">${ex.cadence || '-'}</td>
-          <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: center; color: #64748b;">${ex.rest || '-'}</td>
-          <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px; color: #64748b;">${ex.observation || ''}</td>
+      daysHtml += `
+        <tr style="background: ${bgColor};">
+          <td style="padding: 8px 12px; border-bottom: 1px solid #f1f5f9; font-weight: 600; color: #0f172a;">
+            ${exName}
+            ${exObj?.accessory ? `<span style="color: #d97706; font-weight: 500; font-size: 11px;"> (${exObj.accessory})</span>` : ''}
+          </td>
+          <td style="padding: 8px 12px; border-bottom: 1px solid #f1f5f9; text-align: center; font-weight: 600; color: #0f172a;">${ex.sets}</td>
+          <td style="padding: 8px 12px; border-bottom: 1px solid #f1f5f9; text-align: center; font-weight: 600; color: #0f172a;">${ex.reps}</td>
+          <td style="padding: 8px 12px; border-bottom: 1px solid #f1f5f9; text-align: center; color: #64748b;">${ex.cadence || '-'}</td>
+          <td style="padding: 8px 12px; border-bottom: 1px solid #f1f5f9; text-align: center; color: #64748b;">${ex.rest || '-'}</td>
+          <td style="padding: 8px 12px; border-bottom: 1px solid #f1f5f9; font-size: 12px; color: #64748b;">${ex.observation || ''}</td>
         </tr>
       `;
     });
 
-    html += `
+    daysHtml += `
           </tbody>
         </table>
       </div>
     `;
   });
 
-  container.innerHTML = html;
+  // Footer
+  const today = new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' });
+  const footerHtml = `
+    <div style="margin: 32px 40px 0; padding: 16px 0 0; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 11px; color: #94a3b8;">
+      <span>Generado por ${coachName}</span>
+      <span>${today}</span>
+    </div>
+  `;
+
+  container.innerHTML = `
+    <div style="padding-bottom: 24px;">
+      ${headerHtml}
+      ${descHtml}
+      ${daysHtml}
+      ${footerHtml}
+    </div>
+  `;
 
   // Inject CSS to override Tailwind oklch color variables that html2canvas can't parse
   const fixStyle = document.createElement('style');
@@ -199,7 +219,6 @@ export default async function generatePDF(plan: Planificacion, exercises: Exerci
   `;
   container.insertBefore(fixStyle, container.firstChild);
 
-  // 4. Generate PDF
   try {
     const canvas = await html2canvas(container, {
       scale: 2,
@@ -207,13 +226,35 @@ export default async function generatePDF(plan: Planificacion, exercises: Exerci
       logging: false
     });
 
-    const imgData = canvas.toDataURL('image/png');
     const pdf = new jsPDF('p', 'mm', 'a4');
+    const pw = pdf.internal.pageSize.getWidth();
+    const ph = pdf.internal.pageSize.getHeight();
 
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+    const cw = canvas.width;
+    const ch = canvas.height;
 
-    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+    const mmPerPx = pw / cw;
+    const pxPerPage = ph / mmPerPx;
+
+    let srcY = 0;
+    let pageNum = 0;
+
+    while (srcY < ch) {
+      const sliceH = Math.min(pxPerPage, ch - srcY);
+      const sliceCanvas = document.createElement('canvas');
+      sliceCanvas.width = cw;
+      sliceCanvas.height = sliceH;
+      const sliceCtx = sliceCanvas.getContext('2d')!;
+      sliceCtx.drawImage(canvas, 0, srcY, cw, sliceH, 0, 0, cw, sliceH);
+      const sliceData = sliceCanvas.toDataURL('image/png');
+
+      if (pageNum > 0) pdf.addPage();
+      pdf.addImage(sliceData, 'PNG', 0, 0, pw, sliceH * mmPerPx);
+
+      srcY += sliceH;
+      pageNum++;
+    }
+
     pdf.save(`${plan.type}_${plan.name.replace(/\s+/g, '_')}_${studentName.replace(/\s+/g, '_')}.pdf`);
   } catch (error) {
     console.error("Error generating PDF:", error);

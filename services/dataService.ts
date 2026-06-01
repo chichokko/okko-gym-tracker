@@ -366,6 +366,7 @@ export const getPlanificaciones = async (asStudent?: boolean): Promise<any[]> =>
     type: p.tipo,
     duration: p.duracion,
     studentId: p.alumno_id,
+    activo: p.activo ?? false,
     createdAt: p.created_at ? new Date(p.created_at) : undefined,
     days: (p.rutina_planificacion || []).filter((rp: any) => rp.rutina).map((rp: any) => ({
       id: rp.id,
@@ -397,7 +398,7 @@ export const savePlanificacion = async (plan: any): Promise<any | null> => {
     const { data: persona } = await supabase.from('persona').select('id').eq('user_id', user.id).single();
     if (!persona) throw new Error("No se encontró el perfil del entrenador");
 
-    const payload = {
+    const payload: any = {
       id: plan.id || undefined,
       nombre: plan.name,
       descripcion: plan.description || null,
@@ -407,6 +408,10 @@ export const savePlanificacion = async (plan: any): Promise<any | null> => {
       creador_id: persona.id
     };
 
+    if (plan.activo !== undefined) {
+      payload.activo = plan.activo;
+    }
+
     const { data, error } = await supabase
       .from('planificacion')
       .upsert(payload)
@@ -414,6 +419,15 @@ export const savePlanificacion = async (plan: any): Promise<any | null> => {
       .single();
 
     if (error) throw error;
+
+    // If activating this plan, deactivate all others for the same student
+    if (plan.activo === true && data.alumno_id) {
+      await supabase
+        .from('planificacion')
+        .update({ activo: false })
+        .eq('alumno_id', data.alumno_id)
+        .neq('id', data.id);
+    }
     
     // Mapping back to app format
     return {
@@ -424,6 +438,7 @@ export const savePlanificacion = async (plan: any): Promise<any | null> => {
       type: data.tipo,
       duration: data.duracion,
       studentId: data.alumno_id,
+      activo: data.activo ?? false,
       createdAt: data.created_at ? new Date(data.created_at) : undefined,
       days: plan.days || [] // Just carry over existing days for builder state
     };
@@ -456,6 +471,109 @@ export const removeRoutineFromPlan = async (rutinaPlanificacionId: string): Prom
     return false;
   }
   return true;
+};
+
+export const getStudentActivePlan = async (studentId: string): Promise<{ id: string; name: string } | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('planificacion')
+      .select('id, nombre')
+      .eq('alumno_id', studentId)
+      .eq('activo', true)
+      .limit(1);
+
+    if (error || !data || data.length === 0) return null;
+    return { id: data[0].id, name: data[0].nombre };
+  } catch (error) {
+    await handleAuthError(error);
+    return null;
+  }
+};
+
+export const setActivePlanificacion = async (planId: string, studentId: string): Promise<boolean> => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error("No user authenticated");
+
+    const { data: persona } = await supabase.from('persona').select('id').eq('user_id', user.id).single();
+    if (!persona) throw new Error("Profile not found");
+
+    // Deactivate all plans for this student
+    const { error: deactivateError } = await supabase
+      .from('planificacion')
+      .update({ activo: false })
+      .eq('alumno_id', studentId)
+      .eq('creador_id', persona.id);
+
+    if (deactivateError) throw deactivateError;
+
+    // Activate the selected plan
+    const { error: activateError } = await supabase
+      .from('planificacion')
+      .update({ activo: true })
+      .eq('id', planId);
+
+    if (activateError) throw activateError;
+
+    return true;
+  } catch (error) {
+    await handleAuthError(error);
+    return false;
+  }
+};
+
+export const getActivePlanificacionRoutines = async (studentId: string): Promise<Routine[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('planificacion')
+      .select(`
+        id,
+        activo,
+        rutina_planificacion (
+          id,
+          rutina_id,
+          rutina (
+            id, nombre, descripcion,
+            rutina_ejercicio (
+              ejercicio_id, series_objetivo, reps_objetivo, orden, cadencia, descanso, observacion
+            )
+          )
+        )
+      `)
+      .eq('alumno_id', studentId)
+      .order('created_at', { ascending: false });
+
+    if (error) return [];
+
+    // Find the first plan with activo=true, or fall back to newest plan
+    const plans = data || [];
+    const activePlan = plans.find((p: any) => p.activo === true) || plans[0];
+    if (!activePlan) return [];
+
+    const routines: Routine[] = (activePlan.rutina_planificacion || [])
+      .filter((rp: any) => rp.rutina)
+      .map((rp: any) => ({
+        id: rp.rutina.id,
+        name: rp.rutina.nombre,
+        description: rp.rutina.descripcion,
+        exercises: (rp.rutina.rutina_ejercicio || [])
+          .sort((a: any, b: any) => a.orden - b.orden)
+          .map((re: any) => ({
+            exerciseId: re.ejercicio_id,
+            sets: re.series_objetivo,
+            reps: re.reps_objetivo,
+            restSeconds: 120,
+            cadence: re.cadencia,
+            rest: re.descanso,
+            observation: re.observacion
+          }))
+      }));
+
+    return routines;
+  } catch (error) {
+    await handleAuthError(error);
+    return [];
+  }
 };
 
 // --- SESIONES ---

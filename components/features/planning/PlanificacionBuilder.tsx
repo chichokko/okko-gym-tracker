@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Planificacion, Routine, RoutineExercise, Exercise } from '../../../types';
 import { Card, Button, Input, IconButton, Select, PageHeader, toast, Badge, Modal } from '../../ui';
-import { Save, Plus, Trash2, ArrowLeft, Loader2, Download, Edit2, Search } from 'lucide-react';
+import { Save, Plus, Trash2, ArrowLeft, Loader2, Download, Edit2, Search, GripVertical } from 'lucide-react';
 import * as DataService from '../../../services/dataService';
 import { useGymData } from '../../../context/GymContext';
 import generatePDF from './PlanificacionPDF';
@@ -21,6 +21,25 @@ const PlanificacionBuilder: React.FC<PlanificacionBuilderProps> = ({ initialPlan
   // State for the Day/Routine being actively edited
   const [editingDay, setEditingDay] = useState<Routine | null>(null);
   const [isSavingDay, setIsSavingDay] = useState(false);
+
+  // Existing active plan warning
+  const [existingActivePlan, setExistingActivePlan] = useState<{ id: string; name: string } | null>(null);
+
+  // When student changes, check if they already have an active plan
+  useEffect(() => {
+    if (!plan.studentId) {
+      setExistingActivePlan(null);
+      return;
+    }
+    if (plan.activo) {
+      setExistingActivePlan(null);
+      return;
+    }
+    DataService.getStudentActivePlan(plan.studentId).then(setExistingActivePlan);
+  }, [plan.studentId, plan.activo]);
+
+  // Drag-and-drop state
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
 
   // State for exercise picker modal
   const [exercisePickerOpen, setExercisePickerOpen] = useState(false);
@@ -266,14 +285,65 @@ const PlanificacionBuilder: React.FC<PlanificacionBuilderProps> = ({ initialPlan
               <option key={s.id} value={s.id}>{s.name}</option>
             ))}
           </Select>
-          <div className="md:col-span-2">
-             <Input
-               label="Descripción / Objetivos"
-               value={plan.description || ''}
-               onChange={e => setPlan({ ...plan, description: e.target.value })}
-               disabled={readOnly}
-             />
-          </div>
+
+           {existingActivePlan && (
+             <div className="md:col-span-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg text-sm">
+               <p className="font-medium text-amber-800 dark:text-amber-300">
+                 ⚠ Este alumno ya tiene una planificación activa: <strong>{existingActivePlan.name}</strong>
+               </p>
+               <p className="text-amber-700 dark:text-amber-400 mt-1">
+                 Al activar esta planificación, la anterior se desactivará automáticamente.
+               </p>
+             </div>
+           )}
+
+           <div className="md:col-span-2">
+              <Input
+                label="Descripción / Objetivos"
+                value={plan.description || ''}
+                onChange={e => setPlan({ ...plan, description: e.target.value })}
+                disabled={readOnly}
+              />
+           </div>
+           
+           {!readOnly && plan.studentId && (
+             <div className="md:col-span-2 flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700">
+               <label className="relative inline-flex items-center cursor-pointer">
+                 <input
+                   type="checkbox"
+                   className="sr-only peer"
+                   checked={plan.activo || false}
+                   onChange={async (e) => {
+                     const checked = e.target.checked;
+                     if (checked) {
+                       const ok = await DataService.setActivePlanificacion(plan.id, plan.studentId!);
+                       if (ok) {
+                         setPlan({ ...plan, activo: true });
+                         setNeedsRefresh(true);
+                         toast.success('Planificación activada');
+                       } else {
+                         toast.error('Error al activar planificación');
+                       }
+                     } else {
+                       const updated = await DataService.savePlanificacion({ ...plan, activo: false });
+                       if (updated) {
+                         setPlan({ ...plan, activo: false });
+                         setNeedsRefresh(true);
+                         toast.success('Planificación desactivada');
+                       } else {
+                         toast.error('Error al desactivar planificación');
+                       }
+                     }
+                   }}
+                 />
+                 <div className="w-9 h-5 bg-slate-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-slate-600 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+               </label>
+               <div>
+                 <span className="text-sm font-medium">Planificación activa</span>
+                 <p className="text-xs text-slate-500">Las rutinas de esta planificación aparecerán al crear una sesión</p>
+               </div>
+             </div>
+           )}
         </div>
         
         {!readOnly && (
@@ -345,9 +415,28 @@ const PlanificacionBuilder: React.FC<PlanificacionBuilderProps> = ({ initialPlan
             <div className="space-y-4">
               <h4 className="font-semibold">Ejercicios</h4>
               {editingDay.exercises.map((ex, idx) => (
-                <div key={idx} className="p-4 bg-slate-50 dark:bg-slate-900/30 rounded-lg border border-slate-200 dark:border-slate-700 grid gap-4 grid-cols-1 md:grid-cols-12 relative">
-                   <div className="md:col-span-12 flex justify-between">
-                     <span className="font-bold text-slate-500">#{idx + 1}</span>
+                <div
+                  key={idx}
+                  draggable
+                  onDragStart={(e) => { setDragIdx(idx); e.dataTransfer.effectAllowed = 'move'; }}
+                  onDragOver={(e) => { if (dragIdx !== null && dragIdx !== idx) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; } }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (dragIdx === null || dragIdx === idx) { setDragIdx(null); return; }
+                    const newExercises = [...editingDay.exercises];
+                    const [removed] = newExercises.splice(dragIdx, 1);
+                    newExercises.splice(idx, 0, removed);
+                    setEditingDay({ ...editingDay, exercises: newExercises });
+                    setDragIdx(null);
+                  }}
+                  onDragEnd={() => setDragIdx(null)}
+                  className={`p-4 rounded-lg border grid gap-4 grid-cols-1 md:grid-cols-12 relative transition-shadow ${dragIdx === idx ? 'opacity-50 shadow-inner' : ''} ${dragIdx !== null && dragIdx !== idx ? 'cursor-grab' : ''} bg-slate-50 dark:bg-slate-900/30 border-slate-200 dark:border-slate-700`}
+                >
+                   <div className="md:col-span-12 flex justify-between items-center">
+                     <div className="flex items-center gap-2">
+                       <GripVertical size={16} className="text-slate-400 cursor-grab" />
+                       <span className="font-bold text-slate-500">#{idx + 1}</span>
+                     </div>
                      <IconButton onClick={() => removeExerciseLine(idx)} className="text-red-500 h-6 w-6 p-0 hover:bg-transparent">
                        <Trash2 size={16} />
                      </IconButton>

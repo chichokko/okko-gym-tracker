@@ -283,9 +283,15 @@ const SessionFocusView: React.FC<SessionFocusViewProps> = ({
                                         <div className="col-span-2">
                                             <input
                                                 type="number"
+                                                min={1}
+                                                max={10}
+                                                step={1}
                                                 className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded text-center font-medium py-2 text-sm"
                                                 value={set.rpe || ''}
-                                                onChange={e => handleUpdateSet(set.id, 'rpe', Number(e.target.value))}
+                                                onChange={e => {
+                                                    const val = Number(e.target.value);
+                                                    if (val >= 0 && val <= 10) handleUpdateSet(set.id, 'rpe', val);
+                                                }}
                                                 placeholder="-"
                                             />
                                         </div>
