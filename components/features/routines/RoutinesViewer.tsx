@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
-import { Card, Badge, PageHeader, EmptyState, LoadingOverlay, Modal } from '../../ui';
+import { Card, Badge, PageHeader, EmptyState, LoadingOverlay, Modal, PaginationBar } from '../../ui';
 import { ClipboardList, User, Dumbbell, Clock, Repeat } from 'lucide-react';
 import { useGymData } from '../../../context/GymContext';
 import { Routine } from '../../../types';
+import { usePagination } from '../../../hooks/usePagination';
+
+const PAGE_SIZE = 6;
 
 /**
  * RoutinesViewer - Readonly view of routines for Student role
@@ -13,6 +16,16 @@ const RoutinesViewer: React.FC = () => {
     const [selectedRoutine, setSelectedRoutine] = useState<Routine | null>(null);
 
     if (isLoading && routines.length === 0) return <LoadingOverlay message="Cargando rutinas..." />;
+
+    const {
+        paginatedData: paginatedRoutines,
+        currentPage,
+        totalPages,
+        startEntry,
+        endEntry,
+        setCurrentPage,
+        totalEntries
+    } = usePagination<Routine>(routines, PAGE_SIZE);
 
     return (
         <div className="space-y-6">
@@ -26,51 +39,61 @@ const RoutinesViewer: React.FC = () => {
                     icon={ClipboardList}
                     message="No hay rutinas disponibles."
                 />
-            ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {routines.map(routine => (
-                        <Card
-                            key={routine.id}
-                            className="flex flex-col justify-between cursor-pointer hover:border-blue-500 transition-all hover:shadow-md"
-                            onClick={() => setSelectedRoutine(routine)}
-                        >
-                            <div>
-                                <div className="flex justify-between items-start mb-2">
-                                    <h3 className="font-bold text-xl">{routine.name}</h3>
-                                    <Badge>{routine.exercises.length} Ejercicios</Badge>
-                                </div>
-                                <p className="text-sm text-slate-500 dark:text-slate-400 mb-2 line-clamp-2">{routine.description || 'Sin descripción'}</p>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {paginatedRoutines.map(routine => (
+                                <Card
+                                    key={routine.id}
+                                    className="flex flex-col justify-between cursor-pointer hover:border-blue-500 transition-all hover:shadow-md"
+                                    onClick={() => setSelectedRoutine(routine)}
+                                >
+                                    <div>
+                                        <div className="flex justify-between items-start mb-2">
+                                            <h3 className="font-bold text-xl">{routine.name}</h3>
+                                            <Badge>{routine.exercises.length} Ejercicios</Badge>
+                                        </div>
+                                        <p className="text-sm text-slate-500 dark:text-slate-400 mb-2 line-clamp-2">{routine.description || 'Sin descripción'}</p>
 
-                                {/* Creator Info */}
-                                {routine.creatorName && (
-                                    <div className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500 mb-4">
-                                        <User size={12} />
-                                        <span>Creado por {routine.creatorName}</span>
-                                    </div>
-                                )}
-
-                                <div className="space-y-1 bg-gray-50 dark:bg-slate-800/50 p-3 rounded-lg">
-                                    {routine.exercises.slice(0, 3).map((ex, i) => {
-                                        const exName = exercises.find(e => e.id === ex.exerciseId)?.name || 'Ejercicio desconocido';
-                                        return (
-                                            <div key={i} className="text-xs text-slate-600 dark:text-slate-300 flex justify-between">
-                                                <span className="truncate max-w-[60%]">• {exName}</span>
-                                                <span className="font-mono text-slate-400">{ex.sets} x {ex.reps}</span>
+                                        {/* Creator Info */}
+                                        {routine.creatorName && (
+                                            <div className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500 mb-4">
+                                                <User size={12} />
+                                                <span>Creado por {routine.creatorName}</span>
                                             </div>
-                                        )
-                                    })}
-                                    {routine.exercises.length > 3 && (
-                                        <div className="text-xs text-slate-400 italic pt-1">+ {routine.exercises.length - 3} más...</div>
-                                    )}
-                                    {routine.exercises.length === 0 && (
-                                        <div className="text-xs text-slate-400 italic">Sin ejercicios configurados</div>
-                                    )}
-                                </div>
+                                        )}
+
+                                        <div className="space-y-1 bg-gray-50 dark:bg-slate-800/50 p-3 rounded-lg">
+                                            {routine.exercises.slice(0, 3).map((ex, i) => {
+                                                const exName = exercises.find(e => e.id === ex.exerciseId)?.name || 'Ejercicio desconocido';
+                                                return (
+                                                    <div key={i} className="text-xs text-slate-600 dark:text-slate-300 flex justify-between">
+                                                        <span className="truncate max-w-[60%]">• {exName}</span>
+                                                        <span className="font-mono text-slate-400">{ex.sets} x {ex.reps}</span>
+                                                    </div>
+                                                )
+                                            })}
+                                            {routine.exercises.length > 3 && (
+                                                <div className="text-xs text-slate-400 italic pt-1">+ {routine.exercises.length - 3} más...</div>
+                                            )}
+                                            {routine.exercises.length === 0 && (
+                                                <div className="text-xs text-slate-400 italic">Sin ejercicios configurados</div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </Card>
+                            ))}
+                            <div className="md:col-span-2">
+                                <PaginationBar
+                                    currentPage={currentPage}
+                                    totalPages={totalPages}
+                                    startEntry={startEntry}
+                                    endEntry={endEntry}
+                                    totalEntries={totalEntries}
+                                    onPageChange={setCurrentPage}
+                                />
                             </div>
-                        </Card>
-                    ))}
-                </div>
-            )}
+                        </div>
+                    )}                    
 
             {/* Routine Detail Modal */}
             <Modal

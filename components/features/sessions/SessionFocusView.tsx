@@ -1,10 +1,18 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Exercise, SessionExercise, SetLog } from '../../../types';
-import { Card, Button, Badge, IconButton, Modal, Input, toast } from '../../ui';
+import { Card, Button, Badge, IconButton, Modal, Input, Select, toast } from '../../ui';
 import { Plus, ArrowLeft, PauseCircle, PlayCircle, RotateCcw, X, Search, Loader2 } from 'lucide-react';
 import { ActiveSession, formatTime, generateId } from './types';
 import * as DataService from '../../../services/dataService';
 import { useGymData } from '../../../context/GymContext';
+
+const MUSCLE_GROUPS = [
+    "Pierna", "Pecho", "Espalda", "Hombro", "Bíceps", "Tríceps", "Abdominales", "Cardio", "Full Body", "Otro"
+];
+
+const ACCESSORIES = [
+    "Barra Olímpica", "Cuerda", "Mancuernas", "Máquina", "Polea"
+];
 
 interface SessionFocusViewProps {
     session: ActiveSession;
@@ -132,12 +140,12 @@ const SessionFocusView: React.FC<SessionFocusViewProps> = ({
             return;
         }
         setIsCreatingExercise(true);
-        const success = await DataService.saveExercise({
+        const saved = await DataService.saveExercise({
             name: newExName.trim(),
             muscleGroup: newExMuscle.trim(),
             accessory: newExAccessory.trim() || undefined
         });
-        if (success) {
+        if (saved) {
             toast.success('Ejercicio creado');
             setNewExName('');
             setNewExMuscle('');
@@ -372,16 +380,22 @@ const SessionFocusView: React.FC<SessionFocusViewProps> = ({
                                 value={newExName}
                                 onChange={e => setNewExName(e.target.value)}
                             />
-                            <Input
+                            <Select
                                 placeholder="Grupo muscular"
                                 value={newExMuscle}
                                 onChange={e => setNewExMuscle(e.target.value)}
-                            />
-                            <Input
+                            >
+                                <option value="">Seleccionar...</option>
+                                {MUSCLE_GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
+                            </Select>
+                            <Select
                                 placeholder="Accesorio (opcional)"
                                 value={newExAccessory}
                                 onChange={e => setNewExAccessory(e.target.value)}
-                            />
+                            >
+                                <option value="">Ninguno</option>
+                                {ACCESSORIES.map(a => <option key={a} value={a}>{a}</option>)}
+                            </Select>
                         </div>
                         <Button
                             type="button"

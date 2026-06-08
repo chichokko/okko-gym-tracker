@@ -19,6 +19,7 @@ export interface User {
   role: UserRole;
   email?: string;
   avatarUrl?: string;
+  activo?: boolean;
   config?: AppConfig;
 }
 
@@ -78,6 +79,7 @@ export interface RutinaPlanificacion {
   id: string;
   planificacionId: string;
   routineId: string;
+  orden?: number;
   routine?: Routine;
 }
 

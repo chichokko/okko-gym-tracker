@@ -1,14 +1,21 @@
 import React, { useState } from 'react';
 import { Exercise } from '../../../types';
-import { Card, Button, Input, IconButton, Select, Badge, PageHeader, EmptyState, LoadingOverlay, MobileCardList } from '../../ui';
+import { Card, Button, Input, IconButton, Select, Badge, PageHeader, EmptyState, LoadingOverlay, MobileCardList, PaginationBar } from '../../ui';
 import { Plus, Edit2, Trash2, Search, Dumbbell, Save, X, Loader2, Video, Link as LinkIcon } from 'lucide-react';
 import * as DataService from '../../../services/dataService';
 import { useGymData } from '../../../context/GymContext';
 import { toast } from '../../ui';
+import { usePagination } from '../../../hooks/usePagination';
 
 const MUSCLE_GROUPS = [
     "Pierna", "Pecho", "Espalda", "Hombro", "Bíceps", "Tríceps", "Abdominales", "Cardio", "Full Body", "Otro"
 ];
+
+const ACCESSORIES = [
+    "Barra Olímpica", "Cuerda", "Mancuernas", "Máquina", "Polea"
+];
+
+const PAGE_SIZE = 10;
 
 const ExerciseManager: React.FC = () => {
     const { exercises, isLoading, refreshExercises, refreshRoutines } = useGymData();
@@ -23,6 +30,16 @@ const ExerciseManager: React.FC = () => {
         ex.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         ex.muscleGroup.toLowerCase().includes(searchTerm.toLowerCase())
     );
+
+    const {
+        paginatedData: paginatedExercises,
+        currentPage,
+        totalPages,
+        startEntry,
+        endEntry,
+        setCurrentPage,
+        totalEntries
+    } = usePagination<Exercise>(filteredExercises, PAGE_SIZE);
 
     const handleEdit = (ex: Exercise) => {
         setCurrentExercise(ex);
@@ -52,9 +69,9 @@ const ExerciseManager: React.FC = () => {
         if (!currentExercise.name) return;
 
         setIsSaving(true);
-        const success = await DataService.saveExercise(currentExercise);
+        const saved = await DataService.saveExercise(currentExercise);
 
-        if (success) {
+        if (saved) {
             await refreshExercises();
             toast.success("Ejercicio guardado");
             setIsEditing(false);
@@ -110,12 +127,14 @@ const ExerciseManager: React.FC = () => {
                             >
                                 {MUSCLE_GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
                             </Select>
-                            <Input
+                            <Select
                                 label="Accesorio / Variante"
                                 value={currentExercise.accessory || ''}
                                 onChange={e => setCurrentExercise({ ...currentExercise, accessory: e.target.value })}
-                                placeholder="Ej: Barra, Mancuernas, Polea Alta"
-                            />
+                            >
+                                <option value="">Ninguno</option>
+                                {ACCESSORIES.map(a => <option key={a} value={a}>{a}</option>)}
+                            </Select>
                             <Input
                                 label="Video URL (YouTube)"
                                 value={currentExercise.videoUrl || ''}
@@ -164,7 +183,7 @@ const ExerciseManager: React.FC = () => {
                                     </tr>
                                 </thead >
                                 <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
-                                    {filteredExercises.map((ex) => (
+                                    {paginatedExercises.map((ex) => (
                                         <tr key={ex.id} className="hover:bg-gray-50 dark:hover:bg-slate-800/30 transition-colors group">
                                             <td className="p-4 font-medium text-slate-900 dark:text-white flex items-center gap-3">
                                                 <div className="w-8 h-8 rounded bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400">
@@ -212,15 +231,23 @@ const ExerciseManager: React.FC = () => {
                                 </tbody>
                             </table>
                         </div>
+                        <PaginationBar
+                            currentPage={currentPage}
+                            totalPages={totalPages}
+                            startEntry={startEntry}
+                            endEntry={endEntry}
+                            totalEntries={totalEntries}
+                            onPageChange={setCurrentPage}
+                        />
                     </div>
 
                     {/* Mobile View */}
                     <div className="block md:hidden">
                         <MobileCardList<Exercise>
-                            data={filteredExercises}
+                            data={paginatedExercises}
                             keyExtractor={(ex) => ex.id}
                             titleField={(ex) => ex.name}
-                            subtitleField={(ex) => `${ex.muscleGroup} ${ex.accessory ? `• ${ex.accessory}` : ''}`}
+                            subtitleField={(ex) => `${ex.muscleGroup} ${ex.accessory ? `\u2022 ${ex.accessory}` : ''}`}
                             getActions={(ex) => [
                                 ...(ex.videoUrl ? [{ label: 'Ver Video', icon: Video, onClick: () => window.open(ex.videoUrl, '_blank') }] : []),
                                 { label: 'Editar', icon: Edit2, onClick: () => handleEdit(ex) },
@@ -228,6 +255,16 @@ const ExerciseManager: React.FC = () => {
                             ]}
                             emptyMessage="No se encontraron ejercicios."
                         />
+                        <div className="mt-4">
+                            <PaginationBar
+                                currentPage={currentPage}
+                                totalPages={totalPages}
+                                startEntry={startEntry}
+                                endEntry={endEntry}
+                                totalEntries={totalEntries}
+                                onPageChange={setCurrentPage}
+                            />
+                        </div>
                     </div>
                 </>
             )}

@@ -28,7 +28,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
             {/* Logo */}
             <div className="flex items-center justify-between mb-10 px-2">
                 <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-slate-900 dark:bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold">O</div>
+                    <div className="w-8 h-8 bg-white dark:bg-slate-200 rounded-lg flex items-center justify-center shadow-sm border border-slate-200 dark:border-slate-200 p-1">
+                        <img src="/okko_logo1.svg" alt="OKKO Logo" className="w-full h-full object-contain" />
+                    </div>
                     <span className="text-xl font-bold tracking-tight">OKKO</span>
                 </div>
                 <IconButton onClick={toggleTheme}>

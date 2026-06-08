@@ -59,8 +59,11 @@ export const getStudents = async (): Promise<User[]> => {
   return data.map((p: any) => ({
     id: p.id,
     name: `${p.nombre} ${p.apellido}`,
+    firstName: p.nombre,
+    lastName: p.apellido,
     role: UserRole.STUDENT,
-    email: p.email
+    email: p.email,
+    activo: p.activo !== false
   }));
 };
 
@@ -109,6 +112,24 @@ export const createStudent = async (student: Partial<User> & { firstName: string
     role: UserRole.STUDENT,
     email: data.email
   };
+};
+
+export const updateStudent = async (id: string, data: { firstName?: string; lastName?: string; email?: string }): Promise<boolean> => {
+  const payload: any = {};
+  if (data.firstName !== undefined) payload.nombre = data.firstName;
+  if (data.lastName !== undefined) payload.apellido = data.lastName;
+  if (data.email !== undefined) payload.email = data.email;
+
+  const { error } = await supabase
+    .from('persona')
+    .update(payload)
+    .eq('id', id);
+
+  if (error) {
+    await handleAuthError(error);
+    return false;
+  }
+  return true;
 };
 
 export const updateUserProfile = async (id: string, data: Partial<User>): Promise<boolean> => {
@@ -161,40 +182,39 @@ export const getExercises = async (): Promise<Exercise[]> => {
   }));
 };
 
-export const saveExercise = async (exercise: Partial<Exercise>): Promise<boolean> => {
+export const saveExercise = async (exercise: Partial<Exercise>): Promise<Exercise | null> => {
   try {
-    // 1. Obtener usuario actual para asignar creador
-    //const { data: { user } } = await supabase.auth.getUser();
-    //let creadorId = null;
-
-    //if (user) {
-    //  const { data: persona } = await supabase.from('persona').select('id').eq('user_id', user.id).single();
-    //  if (persona) creadorId = persona.id;
-    //}
-
     const payload: any = {
       nombre: exercise.name,
       grupo_muscular: exercise.muscleGroup,
-      //creador_id: creadorId  Asignar creador para que RLS permita verlo
       accesorio: exercise.accessory,
       video_url: exercise.videoUrl
     };
 
-    // Only include ID if it's an update
     if (exercise.id) payload.id = exercise.id;
 
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('ejercicio')
-      .upsert(payload);
+      .upsert(payload)
+      .select()
+      .single();
 
     if (error) {
       await handleAuthError(error);
-      return false;
+      return null;
     }
-    return true;
+
+    return {
+      id: data.id,
+      name: data.nombre,
+      muscleGroup: data.grupo_muscular,
+      defaultRestSeconds: 120,
+      accessory: data.accesorio,
+      videoUrl: data.video_url
+    };
   } catch (error) {
     console.error("Error saving exercise logic:", error);
-    return false;
+    return null;
   }
 };
 
@@ -335,6 +355,7 @@ export const getPlanificaciones = async (asStudent?: boolean): Promise<any[]> =>
       rutina_planificacion (
         id,
         rutina_id,
+        orden,
         rutina (
           id, nombre, descripcion,
           rutina_ejercicio (
@@ -368,10 +389,11 @@ export const getPlanificaciones = async (asStudent?: boolean): Promise<any[]> =>
     studentId: p.alumno_id,
     activo: p.activo ?? false,
     createdAt: p.created_at ? new Date(p.created_at) : undefined,
-    days: (p.rutina_planificacion || []).filter((rp: any) => rp.rutina).map((rp: any) => ({
+    days: (p.rutina_planificacion || []).filter((rp: any) => rp.rutina).sort((a: any, b: any) => (a.orden || 0) - (b.orden || 0)).map((rp: any) => ({
       id: rp.id,
       planificacionId: p.id,
       routineId: rp.rutina_id,
+      orden: rp.orden || 1,
       routine: {
         id: rp.rutina.id,
         name: rp.rutina.nombre,
@@ -448,11 +470,36 @@ export const savePlanificacion = async (plan: any): Promise<any | null> => {
   }
 };
 
-export const addRoutineToPlan = async (planId: string, routineId: string): Promise<boolean> => {
+export const addRoutineToPlan = async (planId: string, routineId: string, orden?: number): Promise<boolean> => {
+  // Auto-calculate next orden if not provided
+  let nextOrden = orden;
+  if (nextOrden === undefined) {
+    const { data: existing } = await supabase
+      .from('rutina_planificacion')
+      .select('orden')
+      .eq('planificacion_id', planId)
+      .order('orden', { ascending: false })
+      .limit(1);
+    nextOrden = (existing && existing.length > 0 ? existing[0].orden || 0 : 0) + 1;
+  }
+
   const { error } = await supabase
     .from('rutina_planificacion')
-    .insert([{ planificacion_id: planId, rutina_id: routineId }]);
+    .insert([{ planificacion_id: planId, rutina_id: routineId, orden: nextOrden }]);
     
+  if (error) {
+    await handleAuthError(error);
+    return false;
+  }
+  return true;
+};
+
+export const updateRoutineOrden = async (rutinaPlanificacionId: string, newOrden: number): Promise<boolean> => {
+  const { error } = await supabase
+    .from('rutina_planificacion')
+    .update({ orden: newOrden })
+    .eq('id', rutinaPlanificacionId);
+
   if (error) {
     await handleAuthError(error);
     return false;

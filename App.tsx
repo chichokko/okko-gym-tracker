@@ -6,7 +6,7 @@ import Layout from './components/Layout';
 import Login from './components/features/auth/Login';
 import CoachSessionLogger from './components/CoachSessionLogger';
 import StudentDashboard from './components/features/students/StudentDashboard';
-import StudentManager from './components/features/students/StudentManager';
+import AlumnosWithHistory from './components/features/students/AlumnosWithHistory';
 import RoutineManager from './components/features/routines/RoutineManager';
 import RoutinesViewer from './components/features/routines/RoutinesViewer';
 import ExerciseManager from './components/features/routines/ExerciseManager';
@@ -141,8 +141,7 @@ const AppContent: React.FC = () => {
                 <>
                   <Route path="/" element={<Navigate to="/logger" replace />} />
                   <Route path="/logger" element={<CoachSessionLogger />} />
-                  <Route path="/alumnos" element={<StudentManager />} />
-                  <Route path="/historial" element={<SessionHistory />} />
+                  <Route path="/alumnos" element={<AlumnosWithHistory />} />
                   <Route path="/rutinas" element={<RoutineManager />} />
                   <Route path="/ejercicios" element={<ExerciseManager />} />
                   <Route path="/mi-progreso" element={<StudentDashboard user={user} />} />

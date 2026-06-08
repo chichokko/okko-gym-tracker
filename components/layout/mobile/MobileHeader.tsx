@@ -15,7 +15,9 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({
 }) => (
     <header className="lg:hidden bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 p-4 sticky top-0 z-50 flex items-center justify-between">
         <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-slate-900 dark:bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold">O</div>
+            <div className="w-8 h-8 bg-white dark:bg-slate-800 rounded-lg flex items-center justify-center shadow-sm border border-slate-200 dark:border-slate-700 p-1">
+                <img src="/okko_logo1.svg" alt="OKKO Logo" className="w-full h-full object-contain" />
+            </div>
             <span className="text-lg font-bold">OKKO</span>
         </div>
         <div className="flex items-center gap-2">

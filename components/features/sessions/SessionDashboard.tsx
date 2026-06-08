@@ -1,7 +1,10 @@
-import React from 'react';
-import { Card, Button, PageHeader, EmptyState, LoadingOverlay } from '../../ui';
+import React, { useMemo } from 'react';
+import { Card, Button, PageHeader, EmptyState, LoadingOverlay, PaginationBar } from '../../ui';
 import { Plus, Users, X } from 'lucide-react';
 import { ActiveSession } from './types';
+import { usePagination } from '../../../hooks/usePagination';
+
+const PAGE_SIZE = 6;
 
 interface SessionDashboardProps {
     activeSessions: ActiveSession[];
@@ -18,6 +21,16 @@ const SessionDashboard: React.FC<SessionDashboardProps> = ({
     onSelectSession,
     onDiscardSession,
 }) => {
+    const {
+        paginatedData: paginatedSessions,
+        currentPage,
+        totalPages,
+        startEntry,
+        endEntry,
+        setCurrentPage,
+        totalEntries
+    } = usePagination<ActiveSession>(activeSessions, PAGE_SIZE);
+
     if (isLoading) {
         return <LoadingOverlay message="Cargando sesiones..." />;
     }
@@ -46,7 +59,7 @@ const SessionDashboard: React.FC<SessionDashboardProps> = ({
                 />
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {activeSessions.map(session => {
+                    {paginatedSessions.map(session => {
                         const totalSets = session.exercises.reduce((acc, ex) => acc + ex.sets.length, 0);
                         const setsStarted = session.exercises
                             .flatMap(e => e.sets)
@@ -90,6 +103,16 @@ const SessionDashboard: React.FC<SessionDashboardProps> = ({
                             </Card>
                         );
                     })}
+                    <div className="md:col-span-2">
+                        <PaginationBar
+                            currentPage={currentPage}
+                            totalPages={totalPages}
+                            startEntry={startEntry}
+                            endEntry={endEntry}
+                            totalEntries={totalEntries}
+                            onPageChange={setCurrentPage}
+                        />
+                    </div>
                 </div>
             )}
         </div>

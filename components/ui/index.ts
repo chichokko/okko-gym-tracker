@@ -15,3 +15,4 @@ export * from './toast';
 export * from './dropdown-menu';
 export * from './skeleton';
 export * from './mobile-card-list';
+export * from './pagination-bar';

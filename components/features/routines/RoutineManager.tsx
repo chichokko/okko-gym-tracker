@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
 import { Routine } from '../../../types';
-import { Card, Button, Input, IconButton, Select, Badge, PageHeader, EmptyState, LoadingOverlay } from '../../ui';
+import { Card, Button, Input, IconButton, Select, Badge, PageHeader, EmptyState, LoadingOverlay, PaginationBar } from '../../ui';
 import { Plus, Trash2, ChevronRight, Save, Loader2, ClipboardList, User } from 'lucide-react';
 import * as DataService from '../../../services/dataService';
 import { useGymData } from '../../../context/GymContext';
 import { toast } from '../../ui';
+import { usePagination } from '../../../hooks/usePagination';
+
+const PAGE_SIZE = 6;
 
 const RoutineManager: React.FC = () => {
   const { routines, exercises, isLoading, refreshRoutines } = useGymData();
@@ -146,6 +149,16 @@ const RoutineManager: React.FC = () => {
     );
   }
 
+  const {
+    paginatedData: paginatedRoutines,
+    currentPage,
+    totalPages,
+    startEntry,
+    endEntry,
+    setCurrentPage,
+    totalEntries
+  } = usePagination<Routine>(routines, PAGE_SIZE);
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -170,7 +183,7 @@ const RoutineManager: React.FC = () => {
         />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {routines.map(routine => (
+          {paginatedRoutines.map(routine => (
             <Card key={routine.id} className="flex flex-col justify-between hover:border-blue-500 transition-colors cursor-pointer group" onClick={() => setEditingRoutine(routine)}>
               <div>
                 <div className="flex justify-between items-start mb-2">
@@ -209,6 +222,16 @@ const RoutineManager: React.FC = () => {
               </div>
             </Card>
           ))}
+          <div className="md:col-span-2">
+            <PaginationBar
+              currentPage={currentPage}
+              totalPages={totalPages}
+              startEntry={startEntry}
+              endEntry={endEntry}
+              totalEntries={totalEntries}
+              onPageChange={setCurrentPage}
+            />
+          </div>
         </div>
       )}
     </div>

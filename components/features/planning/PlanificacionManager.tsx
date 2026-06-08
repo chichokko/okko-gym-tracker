@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Planificacion, User, UserRole } from '../../../types';
-import { Card, Button, PageHeader, EmptyState, LoadingOverlay, Badge } from '../../ui';
+import { Card, Button, PageHeader, EmptyState, LoadingOverlay, Badge, PaginationBar } from '../../ui';
 import { Plus, CalendarDays, ChevronRight, Download, Eye } from 'lucide-react';
 import * as DataService from '../../../services/dataService';
 import PlanificacionBuilder from './PlanificacionBuilder';
 import { useSession } from '../../../context/SessionContext';
+import { usePagination } from '../../../hooks/usePagination';
+
+const PAGE_SIZE = 5;
 
 interface PlanificacionManagerProps {
   user: User;
@@ -55,6 +58,16 @@ const PlanificacionManager: React.FC<PlanificacionManagerProps> = ({ user }) => 
     setEditingPlan(plan);
   };
 
+  const {
+    paginatedData: paginatedPlanes,
+    currentPage,
+    totalPages,
+    startEntry,
+    endEntry,
+    setCurrentPage,
+    totalEntries
+  } = usePagination<Planificacion>(planes, PAGE_SIZE);
+
   if (isLoading) return <LoadingOverlay message="Cargando planificaciones..." />;
 
   if (editingPlan) {
@@ -90,7 +103,7 @@ const PlanificacionManager: React.FC<PlanificacionManagerProps> = ({ user }) => 
         />
       ) : (
         <div className="grid grid-cols-1 gap-4">
-          {planes.map(plan => (
+          {paginatedPlanes.map(plan => (
             <Card
               key={plan.id}
               className="flex flex-col md:flex-row justify-between hover:border-blue-500 transition-colors cursor-pointer group"
@@ -123,6 +136,14 @@ const PlanificacionManager: React.FC<PlanificacionManagerProps> = ({ user }) => 
               </div>
             </Card>
           ))}
+          <PaginationBar
+            currentPage={currentPage}
+            totalPages={totalPages}
+            startEntry={startEntry}
+            endEntry={endEntry}
+            totalEntries={totalEntries}
+            onPageChange={setCurrentPage}
+          />
         </div>
       )}
     </div>

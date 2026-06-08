@@ -33,7 +33,6 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, isDarkMode, t
     ? [
       { label: 'Sesión Actual', icon: PlayCircle, path: '/logger' },
       { label: 'Alumnos', icon: Users, path: '/alumnos' },
-      { label: 'Historial', icon: History, path: '/historial' },
       { label: 'Planificación', icon: ClipboardList, path: '/planificacion' },
       ...(showRoutineLibrary ? [{ label: 'Librería de Rutinas', icon: BookOpen, path: '/rutinas' }] : []),
       { label: 'Ejercicios', icon: Dumbbell, path: '/ejercicios' },
@@ -52,7 +51,6 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, isDarkMode, t
     ? [
       { label: 'Sesión', icon: PlayCircle, path: '/logger' },
       { label: 'Alumnos', icon: Users, path: '/alumnos' },
-      { label: 'Historial', icon: History, path: '/historial' },
     ]
     : [
       { label: 'Progreso', icon: Activity, path: '/' },

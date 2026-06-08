@@ -1,10 +1,18 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Planificacion, Routine, RoutineExercise, Exercise } from '../../../types';
 import { Card, Button, Input, IconButton, Select, PageHeader, toast, Badge, Modal } from '../../ui';
-import { Save, Plus, Trash2, ArrowLeft, Loader2, Download, Edit2, Search, GripVertical } from 'lucide-react';
+import { Save, Plus, Trash2, ArrowLeft, Loader2, Download, Edit2, Search, GripVertical, ArrowUp, ArrowDown, ListOrdered } from 'lucide-react';
 import * as DataService from '../../../services/dataService';
 import { useGymData } from '../../../context/GymContext';
 import generatePDF from './PlanificacionPDF';
+
+const MUSCLE_GROUPS = [
+    "Pierna", "Pecho", "Espalda", "Hombro", "Bíceps", "Tríceps", "Abdominales", "Cardio", "Full Body", "Otro"
+];
+
+const ACCESSORIES = [
+    "Barra Olímpica", "Cuerda", "Mancuernas", "Máquina", "Polea"
+];
 
 interface PlanificacionBuilderProps {
   initialPlan: Planificacion;
@@ -37,6 +45,9 @@ const PlanificacionBuilder: React.FC<PlanificacionBuilderProps> = ({ initialPlan
     }
     DataService.getStudentActivePlan(plan.studentId).then(setExistingActivePlan);
   }, [plan.studentId, plan.activo]);
+
+  // Reorder modal state
+  const [reorderOpen, setReorderOpen] = useState(false);
 
   // Drag-and-drop state
   const [dragIdx, setDragIdx] = useState<number | null>(null);
@@ -86,7 +97,8 @@ const PlanificacionBuilder: React.FC<PlanificacionBuilderProps> = ({ initialPlan
     }
     setEditingDay({
       id: '',
-      name: `Día ${plan.days.length + 1}`,
+      name: '',
+      description: '',
       exercises: []
     });
   };
@@ -208,17 +220,18 @@ const PlanificacionBuilder: React.FC<PlanificacionBuilderProps> = ({ initialPlan
       return;
     }
     setIsCreatingExercise(true);
-    const success = await DataService.saveExercise({
+    const saved = await DataService.saveExercise({
       name: newExName.trim(),
       muscleGroup: newExMuscle.trim(),
       accessory: newExAccessory.trim() || undefined
     });
-    if (success) {
+    if (saved) {
       toast.success('Ejercicio creado');
       setNewExName('');
       setNewExMuscle('');
       setNewExAccessory('');
       await refreshExercises();
+      handleSelectExercise(saved.id);
     } else {
       toast.error('Error al crear ejercicio');
     }
@@ -227,6 +240,24 @@ const PlanificacionBuilder: React.FC<PlanificacionBuilderProps> = ({ initialPlan
 
   const handleExportPDF = async () => {
      generatePDF(plan, exercises, students);
+  };
+
+  const handleMoveDay = async (idx: number, direction: -1 | 1) => {
+    const newIdx = idx + direction;
+    if (newIdx < 0 || newIdx >= plan.days.length) return;
+
+    const days = [...plan.days];
+    const [moved] = days.splice(idx, 1);
+    days.splice(newIdx, 0, moved);
+
+    const updatedDays = days.map((d, i) => ({ ...d, orden: i + 1 }));
+    setPlan({ ...plan, days: updatedDays });
+
+    // Save new orden in DB
+    for (const d of updatedDays) {
+      await DataService.updateRoutineOrden(d.id, d.orden!);
+    }
+    setNeedsRefresh(true);
   };
 
   return (
@@ -361,9 +392,9 @@ const PlanificacionBuilder: React.FC<PlanificacionBuilderProps> = ({ initialPlan
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-lg font-bold">Días de Entrenamiento</h2>
-            {!readOnly && (
-              <Button size="sm" onClick={handleAddNewDay}>
-                <Plus size={16} /> Añadir Día
+            {!readOnly && plan.days.length > 0 && (
+              <Button variant="secondary" size="sm" onClick={() => setReorderOpen(true)}>
+                <ListOrdered size={16} /> Modificar orden
               </Button>
             )}
           </div>
@@ -377,7 +408,7 @@ const PlanificacionBuilder: React.FC<PlanificacionBuilderProps> = ({ initialPlan
               {plan.days.map((dayLine, i) => (
                  <Card key={dayLine.id} className="p-4 flex justify-between items-center">
                     <div>
-                      <h4 className="font-bold">Día {i+1}: {dayLine.routine?.name || 'Sin nombre'}</h4>
+                      <h4 className="font-bold">Día {dayLine.orden || i + 1}: {dayLine.routine?.name || 'Sin nombre'}</h4>
                       <p className="text-sm text-slate-500">{dayLine.routine?.exercises?.length || 0} ejercicios</p>
                     </div>
                     {!readOnly && (
@@ -394,6 +425,12 @@ const PlanificacionBuilder: React.FC<PlanificacionBuilderProps> = ({ initialPlan
               ))}
             </div>
           )}
+
+          {!readOnly && (
+            <Button variant="secondary" fullWidth className="border-dashed" onClick={handleAddNewDay}>
+              <Plus size={16} /> Añadir Día
+            </Button>
+          )}
         </div>
       )}
 
@@ -407,9 +444,17 @@ const PlanificacionBuilder: React.FC<PlanificacionBuilderProps> = ({ initialPlan
           
           <div className="p-6 space-y-6">
             <Input
-              label="Nombre del Día (Ej: Pierna Pesado)"
+              label="Nombre del Día"
               value={editingDay.name}
               onChange={e => setEditingDay({ ...editingDay, name: e.target.value })}
+              placeholder="Ej: Pierna Pesado"
+            />
+            
+            <Input
+              label="Descripción (Opcional)"
+              value={editingDay.description || ''}
+              onChange={e => setEditingDay({ ...editingDay, description: e.target.value })}
+              placeholder="Enfoque del día, notas generales..."
             />
             
             <div className="space-y-4">
@@ -491,6 +536,48 @@ const PlanificacionBuilder: React.FC<PlanificacionBuilderProps> = ({ initialPlan
         </Card>
       )}
 
+      {/* REORDER MODAL */}
+      <Modal
+        isOpen={reorderOpen}
+        onClose={() => setReorderOpen(false)}
+        title="Modificar orden de días"
+        size="md"
+      >
+        <div className="space-y-2">
+          {[...plan.days].sort((a, b) => (a.orden || 0) - (b.orden || 0)).map((dayLine, idx) => (
+            <div
+              key={dayLine.id}
+              className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700"
+            >
+              <div className="flex items-center gap-3">
+                <span className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 flex items-center justify-center text-xs font-bold">
+                  {dayLine.orden || idx + 1}
+                </span>
+                <span className="font-medium">{dayLine.routine?.name || 'Sin nombre'}</span>
+              </div>
+              <div className="flex gap-1">
+                <IconButton
+                  size="sm"
+                  disabled={idx === 0}
+                  onClick={() => handleMoveDay(idx, -1)}
+                  className="disabled:opacity-30"
+                >
+                  <ArrowUp size={16} />
+                </IconButton>
+                <IconButton
+                  size="sm"
+                  disabled={idx === plan.days.length - 1}
+                  onClick={() => handleMoveDay(idx, 1)}
+                  className="disabled:opacity-30"
+                >
+                  <ArrowDown size={16} />
+                </IconButton>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Modal>
+
       {/* EXERCISE PICKER MODAL */}
       <Modal
         isOpen={exercisePickerOpen}
@@ -543,16 +630,22 @@ const PlanificacionBuilder: React.FC<PlanificacionBuilderProps> = ({ initialPlan
                 value={newExName}
                 onChange={e => setNewExName(e.target.value)}
               />
-              <Input
+              <Select
                 placeholder="Grupo muscular"
                 value={newExMuscle}
                 onChange={e => setNewExMuscle(e.target.value)}
-              />
-              <Input
+              >
+                <option value="">Seleccionar...</option>
+                {MUSCLE_GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
+              </Select>
+              <Select
                 placeholder="Accesorio (opcional)"
                 value={newExAccessory}
                 onChange={e => setNewExAccessory(e.target.value)}
-              />
+              >
+                <option value="">Ninguno</option>
+                {ACCESSORIES.map(a => <option key={a} value={a}>{a}</option>)}
+              </Select>
             </div>
             <Button
               type="button"

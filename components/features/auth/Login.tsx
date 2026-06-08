@@ -33,7 +33,9 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     <div className="min-h-screen bg-gray-50 dark:bg-slate-950 flex items-center justify-center p-4">
       <div className="w-full max-w-md animate-in fade-in slide-in-from-bottom-4 duration-500">
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-slate-900 dark:bg-blue-600 rounded-2xl flex items-center justify-center text-white text-2xl font-bold mx-auto mb-6 shadow-lg shadow-blue-500/20">O</div>
+          <div className="w-16 h-16 mx-auto mb-6 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center shadow-lg border border-slate-200 dark:border-slate-700 p-2">
+            <img src="/okko_logo1.svg" alt="OKKO Logo" className="w-full h-full object-contain" />
+          </div>
           <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">Bienvenido a OKKO</h1>
           <p className="text-slate-500 dark:text-slate-400">Ingresa tus credenciales para continuar</p>
         </div>
