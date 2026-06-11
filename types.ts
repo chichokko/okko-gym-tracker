@@ -7,7 +7,6 @@ export interface AppConfig {
   unit: 'kg' | 'lbs';
   smallBrickWeight: number;
   largeBrickWeight: number;
-  showRoutineLibrary?: boolean;
   logoUrl?: string;
 }
 

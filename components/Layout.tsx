@@ -9,8 +9,7 @@ import {
   Activity,
   LayoutDashboard,
   History,
-  Settings,
-  BookOpen
+  Settings
 } from 'lucide-react';
 import { Sidebar, MobileHeader, MobileMenu, BottomNav } from './layout/index';
 
@@ -26,7 +25,6 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, isDarkMode, t
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const isCoach = user.role === UserRole.COACH;
-  const showRoutineLibrary = user.config?.showRoutineLibrary !== false; // default true
 
   // Full navigation items (for sidebar and mobile menu)
   const allNavItems = (isCoach
@@ -34,7 +32,6 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, isDarkMode, t
       { label: 'Sesión Actual', icon: PlayCircle, path: '/logger' },
       { label: 'Alumnos', icon: Users, path: '/alumnos' },
       { label: 'Planificación', icon: ClipboardList, path: '/planificacion' },
-      ...(showRoutineLibrary ? [{ label: 'Librería de Rutinas', icon: BookOpen, path: '/rutinas' }] : []),
       { label: 'Ejercicios', icon: Dumbbell, path: '/ejercicios' },
       { label: 'Mi Progreso', icon: Activity, path: '/mi-progreso' },
       { label: 'Configuración', icon: Settings, path: '/configuracion' },

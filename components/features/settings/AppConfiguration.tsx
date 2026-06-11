@@ -11,13 +11,12 @@ interface AppConfigurationProps {
 }
 
 const AppConfiguration: React.FC<AppConfigurationProps> = ({ user, onConfigUpdate }) => {
-  const defaultConfig: AppConfig = { unit: 'kg', smallBrickWeight: 5, largeBrickWeight: 7.5, showRoutineLibrary: true };
+  const defaultConfig: AppConfig = { unit: 'kg', smallBrickWeight: 5, largeBrickWeight: 7.5 };
   const currentConfig = user.config || defaultConfig;
 
   const [unit, setUnit] = useState<'kg' | 'lbs'>(currentConfig.unit);
   const [smallBrick, setSmallBrick] = useState(currentConfig.smallBrickWeight.toString());
   const [largeBrick, setLargeBrick] = useState(currentConfig.largeBrickWeight.toString());
-  const [showRoutineLibrary, setShowRoutineLibrary] = useState(currentConfig.showRoutineLibrary !== false);
   const [logoUrl, setLogoUrl] = useState(currentConfig.logoUrl || '');
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState(currentConfig.logoUrl || '');
@@ -34,7 +33,6 @@ const AppConfiguration: React.FC<AppConfigurationProps> = ({ user, onConfigUpdat
       unit,
       smallBrickWeight: parseFloat(smallBrick) || defaultConfig.smallBrickWeight,
       largeBrickWeight: parseFloat(largeBrick) || defaultConfig.largeBrickWeight,
-      showRoutineLibrary,
     };
 
     if (logoFile) {
@@ -142,25 +140,6 @@ const AppConfiguration: React.FC<AppConfigurationProps> = ({ user, onConfigUpdat
                   required
                 />
               </div>
-            </div>
-
-            <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl space-y-4">
-              <h3 className="font-semibold text-sm">Menú y Navegación</h3>
-              <label className="flex items-center justify-between cursor-pointer">
-                <div>
-                  <p className="text-sm font-medium">Mostrar Librería de Rutinas</p>
-                  <p className="text-xs text-slate-500">Muestra u oculta el acceso directo a la librería de rutinas en el menú lateral</p>
-                </div>
-                <div className="relative">
-                  <input
-                    type="checkbox"
-                    checked={showRoutineLibrary}
-                    onChange={(e) => setShowRoutineLibrary(e.target.checked)}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-100 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-                </div>
-              </label>
             </div>
           </div>
 

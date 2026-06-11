@@ -7,8 +7,7 @@ import Login from './components/features/auth/Login';
 import CoachSessionLogger from './components/CoachSessionLogger';
 import StudentDashboard from './components/features/students/StudentDashboard';
 import AlumnosWithHistory from './components/features/students/AlumnosWithHistory';
-import RoutineManager from './components/features/routines/RoutineManager';
-import RoutinesViewer from './components/features/routines/RoutinesViewer';
+// Legacy: Routines removed from frontend access
 import ExerciseManager from './components/features/routines/ExerciseManager';
 import SessionHistory from './components/features/sessions/SessionHistory';
 import SettingsView from './components/features/settings/SettingsView';
@@ -142,7 +141,6 @@ const AppContent: React.FC = () => {
                   <Route path="/" element={<Navigate to="/logger" replace />} />
                   <Route path="/logger" element={<CoachSessionLogger />} />
                   <Route path="/alumnos" element={<AlumnosWithHistory />} />
-                  <Route path="/rutinas" element={<RoutineManager />} />
                   <Route path="/ejercicios" element={<ExerciseManager />} />
                   <Route path="/mi-progreso" element={<StudentDashboard user={user} />} />
                   <Route path="/configuracion" element={<SettingsView user={user} />} />
@@ -153,7 +151,6 @@ const AppContent: React.FC = () => {
                 <>
                   <Route path="/" element={<StudentDashboard user={user} />} />
                   <Route path="/historial" element={<SessionHistory studentId={user.id} />} />
-                  <Route path="/rutinas" element={<RoutinesViewer />} />
                   <Route path="/configuracion" element={<SettingsView user={user} />} />
                   <Route path="/planificacion" element={<PlanificacionManager user={user} />} />
                   <Route path="*" element={<Navigate to="/" replace />} />

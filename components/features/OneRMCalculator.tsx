@@ -13,7 +13,8 @@ const PERCENTAGES = [100, 95, 90, 85, 80, 75, 70, 65, 60, 55, 50];
 const calculateRM = (weight: number, reps: number): RMEntry[] | null => {
   if (weight <= 0 || reps <= 0) return null;
   // Epley formula: 1RM = weight * (1 + reps / 30)
-  const rm = weight * (1 + reps / 30);
+  // If reps === 1, the weight IS the 1RM
+  const rm = reps === 1 ? weight : weight * (1 + reps / 30);
   return PERCENTAGES.map(pct => {
     const w = rm * pct / 100;
     const estimatedReps = Math.max(1, Math.round(30 * (100 / pct - 1)));

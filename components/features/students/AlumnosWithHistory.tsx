@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { User } from '../../../types';
 import { PageHeader, DataTable, Column, Modal, Input, Button, Badge, toast, MobileCardList } from '../../ui';
-import { Search, User as UserIcon, Edit2, Save, X, Loader2 } from 'lucide-react';
+import { Search, User as UserIcon, Plus, Edit2, Save, X, Loader2 } from 'lucide-react';
 import * as DataService from '../../../services/dataService';
 import { useGymData } from '../../../context/GymContext';
 import SessionHistory from '../../features/sessions/SessionHistory';
@@ -13,14 +13,34 @@ const AlumnosWithHistory: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('alumnos');
   const [searchTerm, setSearchTerm] = useState('');
 
+  // New student form
+  const [showNewForm, setShowNewForm] = useState(false);
+  const [newUser, setNewUser] = useState({ firstName: '', lastName: '', email: '' });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   // Edit student state
   const [editingStudent, setEditingStudent] = useState<User | null>(null);
-  const [editForm, setEditForm] = useState({ firstName: '', lastName: '', email: '' });
+  const [editForm, setEditForm] = useState({ firstName: '', lastName: '', email: '', activo: true });
   const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   const filteredStudents = students.filter(s =>
     s.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const handleNewSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    const created = await DataService.createStudent(newUser);
+    if (created) {
+      toast.success('Alumno creado correctamente');
+      await refreshStudents();
+      setShowNewForm(false);
+      setNewUser({ firstName: '', lastName: '', email: '' });
+    } else {
+      toast.error('Error al crear alumno');
+    }
+    setIsSubmitting(false);
+  };
 
   const handleEditClick = (student: User) => {
     const [firstName = '', lastName = ''] = student.name.split(' ');
@@ -29,13 +49,14 @@ const AlumnosWithHistory: React.FC = () => {
       firstName: student.firstName || firstName,
       lastName: student.lastName || lastName,
       email: student.email || '',
+      activo: student.activo !== false,
     });
   };
 
   const handleSaveEdit = async () => {
     if (!editingStudent) return;
     setIsSavingEdit(true);
-    const ok = await DataService.updateStudent(editingStudent.id, editForm);
+    const ok = await DataService.updateStudent(editingStudent.id, { ...editForm });
     if (ok) {
       toast.success('Alumno actualizado');
       await refreshStudents();
@@ -80,11 +101,6 @@ const AlumnosWithHistory: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in pb-20">
-      <PageHeader
-        title="Alumnos e Historial"
-        subtitle="Gestiona a tus deportistas y revisa su historial de entrenos"
-      />
-
       {/* Tabs */}
       <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-lg w-full max-w-md mx-auto sm:mx-0">
         <button
@@ -112,6 +128,18 @@ const AlumnosWithHistory: React.FC = () => {
       {/* Tab Content */}
       {activeTab === 'alumnos' ? (
         <>
+          <div className="space-y-6">
+            <PageHeader
+              title="Alumnos"
+              subtitle={'Gestiona información de tus alumnos'}
+              action={
+                <Button onClick={() => setShowNewForm(true)}>
+                  <Plus size={20} /> Nuevo Alumno
+                </Button>
+              }
+            />
+          </div>
+
           <div className="relative max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
             <Input
@@ -166,6 +194,44 @@ const AlumnosWithHistory: React.FC = () => {
             />
           </div>
 
+          {/* New Student Modal */}
+          <Modal
+            isOpen={showNewForm}
+            onClose={() => setShowNewForm(false)}
+            title="Nuevo Alumno"
+            size="md"
+          >
+            <form onSubmit={handleNewSubmit} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <Input
+                  label="Nombre"
+                  value={newUser.firstName}
+                  onChange={e => setNewUser({ ...newUser, firstName: e.target.value })}
+                  required
+                />
+                <Input
+                  label="Apellido"
+                  value={newUser.lastName}
+                  onChange={e => setNewUser({ ...newUser, lastName: e.target.value })}
+                  required
+                />
+              </div>
+              <Input
+                label="Email"
+                type="email"
+                value={newUser.email}
+                onChange={e => setNewUser({ ...newUser, email: e.target.value })}
+                required
+              />
+              <div className="flex gap-3 pt-4 justify-end">
+                <Button type="button" variant="ghost" onClick={() => setShowNewForm(false)}>Cancelar</Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? 'Guardando...' : 'Crear Alumno'}
+                </Button>
+              </div>
+            </form>
+          </Modal>
+
           {/* Edit Student Modal */}
           <Modal
             isOpen={!!editingStudent}
@@ -192,6 +258,21 @@ const AlumnosWithHistory: React.FC = () => {
                 value={editForm.email}
                 onChange={e => setEditForm({ ...editForm, email: e.target.value })}
               />
+              <label className="flex items-center justify-between cursor-pointer">
+                <div>
+                  <p className="text-sm font-medium">Activo</p>
+                  <p className="text-xs text-slate-500">Desmarca para desactivar el acceso del alumno</p>
+                </div>
+                <div className="relative">
+                  <input
+                    type="checkbox"
+                    checked={editForm.activo}
+                    onChange={(e) => setEditForm({ ...editForm, activo: e.target.checked })}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-100 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-green-500"></div>
+                </div>
+              </label>
               <div className="flex gap-3 pt-4 justify-end">
                 <Button type="button" variant="ghost" onClick={() => setEditingStudent(null)}>Cancelar</Button>
                 <Button onClick={handleSaveEdit} disabled={isSavingEdit}>

@@ -114,11 +114,12 @@ export const createStudent = async (student: Partial<User> & { firstName: string
   };
 };
 
-export const updateStudent = async (id: string, data: { firstName?: string; lastName?: string; email?: string }): Promise<boolean> => {
+export const updateStudent = async (id: string, data: { firstName?: string; lastName?: string; email?: string; activo?: boolean }): Promise<boolean> => {
   const payload: any = {};
   if (data.firstName !== undefined) payload.nombre = data.firstName;
   if (data.lastName !== undefined) payload.apellido = data.lastName;
   if (data.email !== undefined) payload.email = data.email;
+  if (data.activo !== undefined) payload.activo = data.activo;
 
   const { error } = await supabase
     .from('persona')

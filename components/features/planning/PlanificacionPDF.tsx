@@ -6,6 +6,16 @@ import { supabase } from '../../../lib/supabaseClient';
 // Register a clean font (optional, uses Helvetica by default)
 // Font.register({ family: 'Inter', src: 'https://fonts.gstatic.com/s/inter/v18/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuLyfAZ9hiJ-Ek-_EeA.woff2' });
 
+const ACCESSORY_LABELS: Record<string, string> = {
+  'BARRA_OLIMPICA': 'Barra Olímpica',
+  'CUERDA': 'Cuerda',
+  'MANCUERNAS': 'Mancuernas',
+  'MAQUINA': 'Máquina',
+  'POLEA': 'Polea',
+};
+
+const formatAccessory = (acc: string) => ACCESSORY_LABELS[acc] || acc;
+
 const s = StyleSheet.create({
   page: {
     padding: 40,
@@ -157,7 +167,7 @@ const PlanPDFDocument: React.FC<PlanPDFProps> = ({ plan, exercises, coachName, l
               <Text style={s.avatarInitial}>{coachName.charAt(0)}</Text>
             </View>
           )}
-          <Text style={s.coachName}>{coachName}</Text>
+          <Text style={s.coachName}>Coach: {coachName}</Text>
         </View>
       </View>
 
@@ -191,7 +201,9 @@ const PlanPDFDocument: React.FC<PlanPDFProps> = ({ plan, exercises, coachName, l
             {/* Table Rows */}
             {routine.exercises.map((ex, j) => {
               const exObj = exercises.find(e => e.id === ex.exerciseId);
-              const exName = exObj ? exObj.name : 'Ejercicio Desconocido';
+              const exName = exObj
+                ? exObj.name + (exObj.accessory ? ` (${formatAccessory(exObj.accessory)})` : '')
+                : 'Ejercicio Desconocido';
 
               return (
                 <View key={j} style={s.tableRow}>
@@ -210,7 +222,7 @@ const PlanPDFDocument: React.FC<PlanPDFProps> = ({ plan, exercises, coachName, l
 
       {/* FOOTER */}
       <Text style={s.footer} fixed>
-        Generado por OKKO Gym Tracker • {new Date().toLocaleDateString('es-AR')}
+        Generado en OKKO Gym Tracker • {new Date().toLocaleDateString('es-AR')}
       </Text>
     </Page>
   </Document>
