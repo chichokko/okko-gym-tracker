@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { ActiveSession, generateId } from './features/sessions/types';
 import { toast } from './ui';
 import * as DataService from '../services/dataService';
@@ -6,64 +6,36 @@ import SessionDashboard from './features/sessions/SessionDashboard';
 import SessionSetupWizard from './features/sessions/SessionSetupWizard';
 import SessionFocusView from './features/sessions/SessionFocusView';
 import { useGymData } from '../context/GymContext';
-import { User } from '../types';
+import { useConfirm } from '../hooks/useConfirm';
+import { ConfirmDialog, PixelsOverlay } from './ui/animations';
+import { useSessionStore } from '../store/useSessionStore';
 
 const CoachSessionLogger: React.FC = () => {
-    // Context Data
     const { students, routines, exercises, isLoading: isGlobalLoading, refreshExercises } = useGymData();
+    const sessionStore = useSessionStore();
+    
+    // Convert store object to array for UI
+    const activeSessionsList = Object.values(sessionStore.activeSessions);
 
-    // View state
     const [viewMode, setViewMode] = useState<'DASHBOARD' | 'SETUP' | 'FOCUS'>('DASHBOARD');
-    const [focusedSessionId, setFocusedSessionId] = useState<string | null>(null);
+    const [focusedStudentId, setFocusedStudentId] = useState<string | null>(null);
+    const [isSaving, setIsSaving] = useState(false);
+    const [showPixelsTransition, setShowPixelsTransition] = useState(false);
 
-    // Local Data (Transactional)
-    const [activeSessions, setActiveSessions] = useState<ActiveSession[]>([]);
-    const [isLoadingSessions, setIsLoadingSessions] = useState(true);
+    const sessionConfirm = useConfirm();
 
-    // Load Active Sessions
-    useEffect(() => {
-        const loadSessions = async () => {
-            setIsLoadingSessions(true);
-            try {
-                const dbSessions = await DataService.getActiveSessions();
-
-                // Map DB sessions to UI format using Global Context Students
-                const mappedSessions: ActiveSession[] = dbSessions.map(dbs => ({
-                    internalId: dbs.id,
-                    student: students.find(s => s.id === dbs.studentId) || { id: dbs.studentId, name: 'Desconocido', role: 'STUDENT' } as User,
-                    routineName: 'En curso',
-                    startTime: dbs.date,
-                    exercises: dbs.exercises,
-                    activeExerciseId: dbs.exercises[0]?.id || null,
-                    isDbPersisted: true
-                }));
-
-                setActiveSessions(mappedSessions);
-            } catch (error) {
-                console.error(error);
-                toast.error('Error al cargar sesiones activas');
-            } finally {
-                setIsLoadingSessions(false);
-            }
-        };
-
-        if (!isGlobalLoading) {
-            loadSessions();
-        }
-    }, [isGlobalLoading, students]); // Reload if students change (initial load)
-
-    // Start new session
     const handleStartSession = async (studentId: string, routineId: string) => {
-        setIsLoadingSessions(true);
         try {
-            // Force refresh exercises to avoid RLS stale data issues (Old exercises missing)
             await refreshExercises();
-
             const student = students.find(s => s.id === studentId);
             const routine = routines.find(r => r.id === routineId);
+            
             if (!student) throw new Error("Student not found");
+            if (sessionStore.activeSessions[studentId]) {
+                toast.error("El alumno ya tiene una sesión activa.");
+                return;
+            }
 
-            // Build initial exercises from routine
             const initialExercises: import('../types').SessionExercise[] = routine
                 ? routine.exercises.map(re => {
                     const baseEx = exercises.find(e => e.id === re.exerciseId);
@@ -84,7 +56,7 @@ const CoachSessionLogger: React.FC = () => {
                 : [];
 
             const newSession: ActiveSession = {
-                internalId: 'temp-' + generateId(),
+                internalId: generateId(),
                 student,
                 routineName: routine?.name || 'Entrenamiento Libre',
                 startTime: new Date(),
@@ -93,92 +65,41 @@ const CoachSessionLogger: React.FC = () => {
                 isDbPersisted: false
             };
 
-            const saved = await DataService.saveSession({
-                id: '',
-                studentId: student.id,
-                coachId: '',
-                date: newSession.startTime,
-                active: true,
-                exercises: initialExercises
-            });
-
-            if (saved?.id) {
-                newSession.internalId = saved.id;
-                newSession.isDbPersisted = true;
-            }
-
-            setActiveSessions(prev => [...prev, newSession]);
+            sessionStore.startSession(studentId, newSession);
             toast.success(`Sesión iniciada para ${student.name}`);
-            setViewMode('DASHBOARD');
+            setShowPixelsTransition(true);
 
         } catch (error) {
             toast.error('Error al crear sesión');
             console.error(error);
-        } finally {
-            setIsLoadingSessions(false);
         }
-    };
-
-    const handleSaveProgress = async (sessionId: string) => {
-        const session = activeSessions.find(s => s.internalId === sessionId);
-        if (!session) return;
-
-        // No loading state needed for background save, just toast promise maybe?
-        // Using existing pattern for now
-
-        toast.promise(
-            DataService.saveSession({
-                id: session.isDbPersisted ? session.internalId : '',
-                studentId: session.student.id,
-                coachId: '',
-                date: session.startTime,
-                active: true,
-                exercises: session.exercises
-            }).then(saved => {
-                if (saved?.id && !session.isDbPersisted) {
-                    updateSession(sessionId, s => ({ ...s, internalId: saved.id, isDbPersisted: true }));
-                    if (focusedSessionId === sessionId) setFocusedSessionId(saved.id);
-                }
-            }),
-            {
-                loading: 'Guardando...',
-                success: 'Progreso guardado',
-                error: 'Error al guardar'
-            }
-        );
     };
 
     const handleDiscardSession = async (sessionId: string) => {
-        const session = activeSessions.find(s => s.internalId === sessionId);
+        // We use sessionId as the internal identifier in Dashboard, but store is keyed by studentId
+        const session = activeSessionsList.find(s => s.internalId === sessionId);
         if (!session) return;
 
-        if (!confirm(`¿Descartar entrenamiento de ${session.student.name}? Se eliminará cualquier progreso guardado.`)) return;
+        const ok = await sessionConfirm.confirm({ 
+            message: `¿Cancelar el entrenamiento de ${session.student.name}? Se perderá todo el progreso local.`, 
+            confirmLabel: 'Cancelar Entrenamiento', 
+            variant: 'danger' 
+        });
+        
+        if (!ok) return;
 
-        setIsLoadingSessions(true);
-        try {
-            if (session.isDbPersisted) {
-                await DataService.deleteSession(session.isDbPersisted ? session.internalId : '');
-            }
-            setActiveSessions(prev => prev.filter(s => s.internalId !== sessionId));
-            toast.success(`Entrenamiento de ${session.student.name} descartado`);
-        } catch (error) {
-            toast.error('Error al descartar sesión');
-            console.error(error);
-        } finally {
-            setIsLoadingSessions(false);
-        }
+        sessionStore.cancelSession(session.student.id);
+        toast.success(`Entrenamiento cancelado`);
     };
 
     const handleFinishSession = async (sessionId: string) => {
-        const session = activeSessions.find(s => s.internalId === sessionId);
+        const session = activeSessionsList.find(s => s.internalId === sessionId);
         if (!session) return;
 
-        if (!confirm(`¿Terminar entrenamiento de ${session.student.name}?`)) return;
-
-        setIsLoadingSessions(true);
+        setIsSaving(true);
         try {
             await DataService.saveSession({
-                id: session.isDbPersisted ? session.internalId : '',
+                id: '',
                 studentId: session.student.id,
                 coachId: '',
                 date: session.startTime,
@@ -186,42 +107,46 @@ const CoachSessionLogger: React.FC = () => {
                 exercises: session.exercises
             });
 
-            setActiveSessions(prev => prev.filter(s => s.internalId !== sessionId));
-            toast.success(`Sesión de ${session.student.name} finalizada`);
+            sessionStore.finishSession(session.student.id);
+            toast.success(`Sesión de ${session.student.name} guardada exitosamente`);
 
-            if (focusedSessionId === sessionId) {
-                setFocusedSessionId(null);
+            if (focusedStudentId === session.student.id) {
+                setFocusedStudentId(null);
                 setViewMode('DASHBOARD');
             }
         } catch (error) {
-            toast.error('Error al finalizar sesión');
+            toast.error('Error al guardar sesión en la base de datos');
             console.error(error);
         } finally {
-            setIsLoadingSessions(false);
+            setIsSaving(false);
         }
     };
 
-    const updateSession = (sessionId: string, updater: (s: ActiveSession) => ActiveSession) => {
-        setActiveSessions(prev => prev.map(s => s.internalId === sessionId ? updater(s) : s));
-    };
-
     const handleSelectSession = (sessionId: string) => {
-        setFocusedSessionId(sessionId);
-        setViewMode('FOCUS');
+        const session = activeSessionsList.find(s => s.internalId === sessionId);
+        if (session) {
+            setFocusedStudentId(session.student.id);
+            setViewMode('FOCUS');
+        }
     };
 
     if (viewMode === 'SETUP') {
         return (
-            <SessionSetupWizard
-                isLoading={isLoadingSessions}
-                onBack={() => setViewMode('DASHBOARD')}
-                onStart={handleStartSession}
-            />
+            <>
+                <SessionSetupWizard
+                    isLoading={isGlobalLoading}
+                    onBack={() => setViewMode('DASHBOARD')}
+                    onStart={handleStartSession}
+                />
+                {showPixelsTransition && (
+                    <PixelsOverlay onComplete={() => { setShowPixelsTransition(false); setViewMode('DASHBOARD'); }} />
+                )}
+            </>
         );
     }
 
-    if (viewMode === 'FOCUS' && focusedSessionId) {
-        const session = activeSessions.find(s => s.internalId === focusedSessionId);
+    if (viewMode === 'FOCUS' && focusedStudentId) {
+        const session = sessionStore.activeSessions[focusedStudentId];
         if (!session) {
             setViewMode('DASHBOARD');
             return null;
@@ -230,24 +155,26 @@ const CoachSessionLogger: React.FC = () => {
         return (
             <SessionFocusView
                 session={session}
-                availableExercises={exercises} // From Context
-                isLoading={isLoadingSessions} // Or separate saving state
+                availableExercises={exercises}
+                isLoading={isSaving}
                 onBack={() => setViewMode('DASHBOARD')}
-                onSaveProgress={() => handleSaveProgress(session.internalId)}
                 onFinishSession={() => handleFinishSession(session.internalId)}
-                onUpdateSession={(updater) => updateSession(session.internalId, updater)}
+                onUpdateSession={(updater) => sessionStore.updateSession(focusedStudentId, updater)}
             />
         );
     }
 
     return (
+        <>
             <SessionDashboard
-            activeSessions={activeSessions}
-            isLoading={isGlobalLoading || isLoadingSessions}
-            onStartNew={() => setViewMode('SETUP')}
-            onSelectSession={handleSelectSession}
-            onDiscardSession={handleDiscardSession}
-        />
+                activeSessions={activeSessionsList}
+                isLoading={isGlobalLoading}
+                onStartNew={() => setViewMode('SETUP')}
+                onSelectSession={handleSelectSession}
+                onDiscardSession={handleDiscardSession}
+            />
+            <ConfirmDialog {...sessionConfirm.getDialogProps()} />
+        </>
     );
 };
 

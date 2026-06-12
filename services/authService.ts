@@ -47,7 +47,8 @@ export const signInWithEmail = async (email: string, password: string): Promise<
       email: profileData.email,
       role: profileData.rol === 'coach' ? UserRole.COACH : UserRole.STUDENT,
       avatarUrl: profileData.avatar_url || undefined,
-      config: appConfig
+      config: appConfig,
+      coachCode: profileData.cod_coach || undefined
     };
 
     return { user: appUser, error: null };
@@ -60,6 +61,74 @@ export const signInWithEmail = async (email: string, password: string): Promise<
 // Use scope: 'local' to only clear local session, not invalidate tokens server-side
 export const signOut = async () => {
   await supabase.auth.signOut({ scope: 'local' });
+};
+
+export const signUpWithEmail = async (
+  firstName: string,
+  lastName: string,
+  email: string,
+  password: string,
+  coachCode?: string
+): Promise<{ user: User | null; error: string | null }> => {
+  try {
+    // 1. Crear el usuario en Auth
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email,
+      password,
+    });
+
+    if (authError) return { user: null, error: authError.message };
+    if (!authData.user) return { user: null, error: "No se pudo crear el usuario." };
+
+    // 2. Buscar si el coachCode es válido
+    let cod_coach = null;
+    if (coachCode) {
+      const { data: coachData } = await supabase
+        .from('persona')
+        .select('id')
+        .eq('cod_coach', coachCode)
+        .eq('rol', 'coach')
+        .single();
+        
+      if (coachData) {
+        cod_coach = coachData.id;
+      }
+    }
+
+    // 3. Crear el perfil en persona
+    const { error: profileError } = await supabase
+      .from('persona')
+      .insert({
+        user_id: authData.user.id,
+        nombre: firstName,
+        apellido: lastName,
+        email: email,
+        rol: 'alumno',
+        cod_coach: cod_coach
+      });
+
+    if (profileError) {
+      console.error("Profile insert error:", profileError);
+      return { user: null, error: "Usuario creado, pero hubo un error al crear el perfil." };
+    }
+
+    // El signUp inicia sesión automáticamente, así que podemos intentar devolver el User formateado.
+    // De forma simplificada, devolvemos el usuario base o dejamos que el listener de sesión se encargue.
+    return { 
+      user: {
+        id: '', // Se actualizará al recargar la sesión
+        name: `${firstName} ${lastName}`,
+        firstName,
+        lastName,
+        email,
+        role: UserRole.STUDENT,
+        config: { unit: 'kg', smallBrickWeight: 5, largeBrickWeight: 7.5 }
+      }, 
+      error: null 
+    };
+  } catch (err: any) {
+    return { user: null, error: err.message || "Error desconocido" };
+  }
 };
 
 export const updateUserEmail = async (email: string): Promise<{ error: string | null }> => {

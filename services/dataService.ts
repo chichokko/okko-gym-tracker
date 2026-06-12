@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabaseClient';
 import { User, Routine, Exercise, Session, SessionExercise, SetLog, UserRole } from '../types';
+import { enumToDb, dbToDisplay } from '../constants/exercise';
 
 // --- USUARIOS (PERSONA) ---
 
@@ -67,51 +68,103 @@ export const getStudents = async (): Promise<User[]> => {
   }));
 };
 
-export const createStudent = async (student: Partial<User> & { firstName: string, lastName: string }): Promise<User | null> => {
-  // 1. Obtener usuario actual (Coach)
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
+export const createStudent = async (data: { firstName: string; lastName: string; email: string }): Promise<User | null> => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
 
-  const { data: persona } = await supabase.from('persona').select('id').eq('user_id', user.id).single();
-  if (!persona) return null;
+    const { data: coach } = await supabase.from('persona').select('id').eq('user_id', user.id).single();
+    if (!coach) return null;
 
-  // 2. Crear Alumno
-  const { data, error } = await supabase
-    .from('persona')
-    .insert([{
-      nombre: student.firstName,
-      apellido: student.lastName,
-      email: student.email,
-      rol: 'alumno'
-    }])
-    .select()
-    .single();
+    const { data: inserted, error } = await supabase
+      .from('persona')
+      .insert([{
+        nombre: data.firstName,
+        apellido: data.lastName,
+        email: data.email,
+        rol: 'alumno',
+        cod_coach: coach.id
+      }])
+      .select()
+      .single();
 
-  if (error) {
-    await handleAuthError(error);
+    if (error) {
+      await handleAuthError(error);
+      return null;
+    }
+
+    return {
+      id: inserted.id,
+      name: `${inserted.nombre} ${inserted.apellido}`,
+      firstName: inserted.nombre,
+      lastName: inserted.apellido,
+      email: inserted.email,
+      role: UserRole.STUDENT,
+    };
+  } catch (error) {
+    console.error("Error creating student:", error);
     return null;
   }
+};
 
-  // 3. Crear relación Coach-Alumno (Auto-link)
-  const { error: relError } = await supabase
-    .from('coach_alumno')
-    .insert([{
-      id_coach: persona.id,
-      id_alumno: data.id,
-      activo: true
-    }]);
+export const getUnlinkedStudents = async (): Promise<User[]> => {
+  const { data: linked } = await supabase.from('coach_alumno').select('id_alumno');
+  const linkedIds = new Set((linked || []).map(r => r.id_alumno));
 
-  if (relError) {
-    console.error("Error creating coach-student relation:", relError);
-    // Podríamos borrar el alumno creado si la relación falla, pero por ahora lo dejamos y solo logueamos
-  }
+  const { data, error } = await supabase
+    .from('persona')
+    .select('*')
+    .eq('rol', 'alumno');
 
-  return {
-    id: data.id,
-    name: `${data.nombre} ${data.apellido}`,
+  if (error || !data) return [];
+
+  const unlinked = data.filter(p => !linkedIds.has(p.id));
+
+  return unlinked.map(p => ({
+    id: p.id,
+    name: `${p.nombre} ${p.apellido}`,
+    firstName: p.nombre,
+    lastName: p.apellido,
+    email: p.email,
     role: UserRole.STUDENT,
-    email: data.email
-  };
+    avatarUrl: p.avatar_url || undefined
+  }));
+};
+
+export const linkStudentToCoach = async (studentId: string): Promise<boolean> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return false;
+  const { data: persona } = await supabase.from('persona').select('id').eq('user_id', user.id).single();
+  if (!persona) return false;
+
+  const { error: personError } = await supabase
+    .from('persona')
+    .update({ cod_coach: persona.id })
+    .eq('id', studentId);
+  if (personError) return false;
+
+  const { error: linkError } = await supabase
+    .from('coach_alumno')
+    .insert({ id_alumno: studentId, id_coach: persona.id, activo: true });
+  if (linkError) return false;
+
+  return true;
+};
+
+export const unlinkStudent = async (studentId: string): Promise<boolean> => {
+  const { error: personError } = await supabase
+    .from('persona')
+    .update({ cod_coach: null })
+    .eq('id', studentId);
+  if (personError) return false;
+
+  const { error: linkError } = await supabase
+    .from('coach_alumno')
+    .delete()
+    .eq('id_alumno', studentId);
+  if (linkError) return false;
+
+  return true;
 };
 
 export const updateStudent = async (id: string, data: { firstName?: string; lastName?: string; email?: string; activo?: boolean }): Promise<boolean> => {
@@ -176,9 +229,9 @@ export const getExercises = async (): Promise<Exercise[]> => {
   return data.map((e: any) => ({
     id: e.id,
     name: e.nombre,
-    muscleGroup: e.grupo_muscular,
-    defaultRestSeconds: 120, // Default ya que no está en la tabla ejercicio original
-    accessory: e.accesorio,
+    muscleGroup: dbToDisplay(e.grupo_muscular),
+    defaultRestSeconds: 120,
+    accessory: e.accesorio ? dbToDisplay(e.accesorio) : undefined,
     videoUrl: e.video_url
   }));
 };
@@ -187,8 +240,8 @@ export const saveExercise = async (exercise: Partial<Exercise>): Promise<Exercis
   try {
     const payload: any = {
       nombre: exercise.name,
-      grupo_muscular: exercise.muscleGroup,
-      accesorio: exercise.accessory,
+      grupo_muscular: exercise.muscleGroup ? enumToDb(exercise.muscleGroup) : undefined,
+      accesorio: exercise.accessory ? enumToDb(exercise.accessory) : undefined,
       video_url: exercise.videoUrl
     };
 
@@ -208,9 +261,9 @@ export const saveExercise = async (exercise: Partial<Exercise>): Promise<Exercis
     return {
       id: data.id,
       name: data.nombre,
-      muscleGroup: data.grupo_muscular,
+      muscleGroup: dbToDisplay(data.grupo_muscular),
       defaultRestSeconds: 120,
-      accessory: data.accesorio,
+      accessory: data.accesorio ? dbToDisplay(data.accesorio) : undefined,
       videoUrl: data.video_url
     };
   } catch (error) {
@@ -678,8 +731,10 @@ export const getActiveSessions = async (): Promise<Session[]> => {
           exercise: {
             id: d.ejercicio.id,
             name: d.ejercicio.nombre,
-            muscleGroup: d.ejercicio.grupo_muscular,
-            defaultRestSeconds: 120
+            muscleGroup: dbToDisplay(d.ejercicio.grupo_muscular),
+            defaultRestSeconds: 120,
+            accessory: d.ejercicio.accesorio ? dbToDisplay(d.ejercicio.accesorio) : undefined,
+            videoUrl: d.ejercicio.video_url
           },
           sets: []
         });

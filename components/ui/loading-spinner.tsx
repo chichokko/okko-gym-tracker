@@ -1,5 +1,6 @@
 import React from 'react';
 import { Loader2 } from 'lucide-react';
+import { RippleLoader } from './animations';
 
 interface LoadingSpinnerProps {
     size?: 'sm' | 'md' | 'lg';
@@ -21,9 +22,9 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ size = 'md', cla
     );
 };
 
-export const LoadingOverlay: React.FC<{ message?: string }> = ({ message }) => (
+export const LoadingOverlay: React.FC<{ message?: string; variant?: 'spinner' | 'ripple' }> = ({ message, variant = 'ripple' }) => (
     <div className="flex flex-col items-center justify-center py-12">
-        <LoadingSpinner size="lg" />
+        {variant === 'ripple' ? <RippleLoader /> : <LoadingSpinner size="lg" />}
         {message && (
             <p className="mt-4 text-sm text-slate-500">{message}</p>
         )}

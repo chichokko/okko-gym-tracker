@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { Card, Button, PageHeader, EmptyState, LoadingOverlay, PaginationBar } from '../../ui';
+import { TypewriterText } from '../../ui/animations';
 import { Plus, Users, X } from 'lucide-react';
 import { ActiveSession } from './types';
 import { usePagination } from '../../../hooks/usePagination';
@@ -38,7 +39,7 @@ const SessionDashboard: React.FC<SessionDashboardProps> = ({
     return (
         <div className="space-y-6 animate-in fade-in pb-20">
             <PageHeader
-                title="Sala de Musculación"
+                title={<TypewriterText text="Sala de Musculación" />}
                 subtitle={`${activeSessions.length} ${activeSessions.length === 1 ? 'Alumno' : 'Alumnos'} entrenando ahora`}
                 action={
                     <Button onClick={onStartNew}>
@@ -68,36 +69,39 @@ const SessionDashboard: React.FC<SessionDashboardProps> = ({
                         return (
                             <Card
                                 key={session.internalId}
-                                className="relative overflow-hidden group"
+                                className="relative overflow-hidden"
                             >
                                 <div className="absolute top-0 left-0 w-1 h-full bg-blue-500" />
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); onDiscardSession(session.internalId); }}
-                                    className="absolute top-2 right-2 p-1 rounded-full bg-red-50 text-red-400 hover:bg-red-100 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
-                                    title="Descartar sesión"
-                                >
-                                    <X size={14} />
-                                </button>
-                                <div className="pl-3 cursor-pointer" onClick={() => onSelectSession(session.internalId)}>
-                                <div className="flex justify-between items-start">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-bold text-slate-600 dark:text-slate-300">
-                                            {session.student.name[0]}
+                                <div className="pl-3">
+                                    <div className="cursor-pointer" onClick={() => onSelectSession(session.internalId)}>
+                                    <div className="flex justify-between items-start">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-bold text-slate-600 dark:text-slate-300">
+                                                {session.student.name[0]}
+                                            </div>
+                                            <div>
+                                                <h3 className="font-bold text-lg leading-tight">{session.student.name}</h3>
+                                                <p className="text-xs text-slate-500">{session.routineName}</p>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <h3 className="font-bold text-lg leading-tight">{session.student.name}</h3>
-                                            <p className="text-xs text-slate-500">{session.routineName}</p>
+                                        <div className="flex flex-col items-end">
+                                            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse mb-1" />
+                                            <span className="text-[10px] text-slate-400">En curso</span>
                                         </div>
                                     </div>
-                                    <div className="flex flex-col items-end">
-                                        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse mb-1" />
-                                        <span className="text-[10px] text-slate-400">En curso</span>
+
+                                    <div className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-800 flex justify-between text-sm text-slate-500 dark:text-slate-400">
+                                        <span>{session.exercises.length} Ejercicios</span>
+                                        <span>{setsStarted} / {totalSets} Series iniciadas</span>
                                     </div>
                                 </div>
-
-                                <div className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-800 flex justify-between text-sm text-slate-500 dark:text-slate-400">
-                                    <span>{session.exercises.length} Ejercicios</span>
-                                    <span>{setsStarted} / {totalSets} Series iniciadas</span>
+                                <div className="mt-3 pt-3 border-t border-gray-100 dark:border-slate-800">
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); onDiscardSession(session.internalId); }}
+                                        className="w-full py-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 text-sm font-medium transition-colors"
+                                    >
+                                        Cancelar Sesión
+                                    </button>
                                 </div>
                             </div>
                             </Card>

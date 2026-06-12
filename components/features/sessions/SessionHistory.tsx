@@ -220,6 +220,9 @@ const SessionHistory: React.FC<SessionHistoryProps> = ({ studentId }) => {
                                     )
                                 }
                             ]}
+                            getSwipeActions={(s) => ({
+                                right: { label: 'Ver', icon: <Eye size={16} />, onClick: () => setSelectedSession(s), color: '#3b82f6' }
+                            })}
                             emptyMessage="No se encontraron sesiones."
                             onCardClick={(s) => setSelectedSession(s)}
                         />

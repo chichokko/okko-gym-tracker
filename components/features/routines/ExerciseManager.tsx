@@ -1,19 +1,12 @@
 import React, { useState } from 'react';
 import { Exercise } from '../../../types';
-import { Card, Button, Input, IconButton, Select, Badge, PageHeader, EmptyState, LoadingOverlay, MobileCardList, PaginationBar } from '../../ui';
-import { Plus, Edit2, Trash2, Search, Dumbbell, Save, X, Loader2, Video, Link as LinkIcon } from 'lucide-react';
+import { Button, Input, IconButton, Select, Badge, PageHeader, EmptyState, LoadingOverlay, MobileCardList, PaginationBar, Modal } from '../../ui';
+import { Plus, Edit2, Trash2, Search, Dumbbell, Save, Loader2, Video } from 'lucide-react';
 import * as DataService from '../../../services/dataService';
 import { useGymData } from '../../../context/GymContext';
 import { toast } from '../../ui';
 import { usePagination } from '../../../hooks/usePagination';
-
-const MUSCLE_GROUPS = [
-    "Pierna", "Pecho", "Espalda", "Hombro", "Bíceps", "Tríceps", "Abdominales", "Cardio", "Full Body", "Otro"
-];
-
-const ACCESSORIES = [
-    "Barra Olímpica", "Cuerda", "Mancuernas", "Máquina", "Polea"
-];
+import { MUSCLE_GROUPS, ACCESSORIES } from '../../../constants/exercise';
 
 const PAGE_SIZE = 10;
 
@@ -69,7 +62,10 @@ const ExerciseManager: React.FC = () => {
         if (!currentExercise.name) return;
 
         setIsSaving(true);
-        const saved = await DataService.saveExercise(currentExercise);
+        const saved = await DataService.saveExercise({
+            ...currentExercise,
+            accessory: currentExercise.accessory || undefined
+        });
 
         if (saved) {
             await refreshExercises();
@@ -95,64 +91,54 @@ const ExerciseManager: React.FC = () => {
                 title="Ejercicios"
                 subtitle={`Biblioteca de movimientos (${exercises.length})`}
                 action={
-                    !isEditing && (
-                        <Button onClick={() => setIsEditing(true)}>
-                            <Plus size={20} /> Nuevo Ejercicio
-                        </Button>
-                    )
+                    <Button onClick={() => setIsEditing(true)}>
+                        <Plus size={20} /> Nuevo Ejercicio
+                    </Button>
                 }
             />
 
-            {/* Form Area using helper components */}
-            {isEditing && (
-                <Card className="border-2 border-blue-500/20 shadow-lg mb-6">
-                    <form onSubmit={handleSave} className="space-y-4">
-                        <div className="flex justify-between items-center mb-2">
-                            <h3 className="font-bold text-lg">{currentExercise.id ? 'Editar Ejercicio' : 'Crear Nuevo Ejercicio'}</h3>
-                            <IconButton onClick={handleCancel} type="button"><X size={20} /></IconButton>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <Input
-                                label="Nombre del Ejercicio"
-                                value={currentExercise.name}
-                                onChange={e => setCurrentExercise({ ...currentExercise, name: e.target.value })}
-                                placeholder="Ej: Press de Banca"
-                                required
-                                autoFocus
-                            />
-                            <Select
-                                label="Grupo Muscular"
-                                value={currentExercise.muscleGroup}
-                                onChange={e => setCurrentExercise({ ...currentExercise, muscleGroup: e.target.value })}
-                            >
-                                {MUSCLE_GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
-                            </Select>
-                            <Select
-                                label="Accesorio / Variante"
-                                value={currentExercise.accessory || ''}
-                                onChange={e => setCurrentExercise({ ...currentExercise, accessory: e.target.value })}
-                            >
-                                <option value="">Ninguno</option>
-                                {ACCESSORIES.map(a => <option key={a} value={a}>{a}</option>)}
-                            </Select>
-                            <Input
-                                label="Video URL (YouTube)"
-                                value={currentExercise.videoUrl || ''}
-                                onChange={e => setCurrentExercise({ ...currentExercise, videoUrl: e.target.value })}
-                                placeholder="https://youtube.com/..."
-                                icon={Video}
-                            />
-                        </div>
-                        <div className="flex justify-end gap-2 pt-2">
-                            <Button type="button" variant="ghost" onClick={handleCancel} disabled={isSaving}>Cancelar</Button>
-                            <Button type="submit" disabled={isSaving}>
-                                {isSaving ? <Loader2 className="animate-spin" /> : <Save size={18} />}
-                                <span className="ml-2">Guardar</span>
-                            </Button>
-                        </div>
-                    </form>
-                </Card>
-            )}
+            {/* Create/Edit Modal */}
+            <Modal isOpen={isEditing} onClose={handleCancel} title={currentExercise.id ? 'Editar Ejercicio' : 'Crear Nuevo Ejercicio'}>
+                <form onSubmit={handleSave} className="space-y-4">
+                    <Input
+                        label="Nombre del Ejercicio"
+                        value={currentExercise.name}
+                        onChange={e => setCurrentExercise({ ...currentExercise, name: e.target.value })}
+                        placeholder="Ej: Press de Banca"
+                        required
+                        autoFocus
+                    />
+                    <Select
+                        label="Grupo Muscular"
+                        value={currentExercise.muscleGroup}
+                        onChange={e => setCurrentExercise({ ...currentExercise, muscleGroup: e.target.value })}
+                    >
+                        {MUSCLE_GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
+                    </Select>
+                    <Select
+                        label="Accesorio / Variante"
+                        value={currentExercise.accessory || ''}
+                        onChange={e => setCurrentExercise({ ...currentExercise, accessory: e.target.value })}
+                    >
+                        <option value="">Ninguno</option>
+                        {ACCESSORIES.map(a => <option key={a} value={a}>{a}</option>)}
+                    </Select>
+                    <Input
+                        label="Video URL (YouTube)"
+                        value={currentExercise.videoUrl || ''}
+                        onChange={e => setCurrentExercise({ ...currentExercise, videoUrl: e.target.value })}
+                        placeholder="https://youtube.com/..."
+                        icon={Video}
+                    />
+                    <div className="flex justify-end gap-2 pt-2">
+                        <Button type="button" variant="ghost" onClick={handleCancel} disabled={isSaving}>Cancelar</Button>
+                        <Button type="submit" disabled={isSaving}>
+                            {isSaving ? <Loader2 className="animate-spin" /> : <Save size={18} />}
+                            <span className="ml-2">Guardar</span>
+                        </Button>
+                    </div>
+                </form>
+            </Modal>
 
             {/* Search Bar */}
             <div className="relative max-w-sm">
@@ -253,6 +239,10 @@ const ExerciseManager: React.FC = () => {
                                 { label: 'Editar', icon: Edit2, onClick: () => handleEdit(ex) },
                                 { label: 'Eliminar', icon: Trash2, onClick: () => handleDelete(ex.id), variant: 'danger' }
                             ]}
+                            getSwipeActions={(ex) => ({
+                                right: { label: 'Editar', icon: <Edit2 size={16} />, onClick: () => handleEdit(ex), color: '#3b82f6' },
+                                left: { label: 'Eliminar', icon: <Trash2 size={16} />, onClick: () => handleDelete(ex.id), color: '#ef4444' }
+                            })}
                             emptyMessage="No se encontraron ejercicios."
                         />
                         <div className="mt-4">

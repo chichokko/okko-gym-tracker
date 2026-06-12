@@ -2,7 +2,8 @@ import React from 'react';
 import { DropdownMenu } from './dropdown-menu';
 import { Card } from './card';
 import { SkeletonCard } from './skeleton';
-import { LucideIcon } from 'lucide-react';
+import { LucideIcon, Trash2, Edit2 } from 'lucide-react';
+import { SwipeableCard, SwipeAction } from './swipeable-card';
 
 interface CardField<T> {
     key: string;
@@ -17,6 +18,11 @@ interface ActionItem {
     variant?: 'default' | 'danger';
 }
 
+interface SwipeActionConfig {
+    left?: SwipeAction;
+    right?: SwipeAction;
+}
+
 interface MobileCardListProps<T> {
     data: T[];
     keyExtractor: (item: T) => string;
@@ -24,6 +30,7 @@ interface MobileCardListProps<T> {
     subtitleField?: (item: T) => React.ReactNode;
     metaFields?: CardField<T>[];
     getActions?: (item: T) => ActionItem[];
+    getSwipeActions?: (item: T) => SwipeActionConfig | undefined;
     isLoading?: boolean;
     loadingCount?: number;
     emptyMessage?: string;
@@ -37,6 +44,7 @@ export function MobileCardList<T>({
     subtitleField,
     metaFields = [],
     getActions,
+    getSwipeActions,
     isLoading = false,
     loadingCount = 3,
     emptyMessage = 'No hay datos disponibles.',
@@ -64,8 +72,9 @@ export function MobileCardList<T>({
         <div className="space-y-4">
             {data.map((item) => {
                 const actions = getActions ? getActions(item) : [];
+                const swipe = getSwipeActions ? getSwipeActions(item) : undefined;
 
-                return (
+                const card = (
                     <Card
                         key={keyExtractor(item)}
                         className="relative flex flex-col justify-between hover:border-blue-500 transition-all cursor-pointer group"
@@ -104,6 +113,16 @@ export function MobileCardList<T>({
                         </div>
                     </Card>
                 );
+
+                return swipe ? (
+                    <SwipeableCard
+                        key={keyExtractor(item)}
+                        onSwipeLeft={swipe.left}
+                        onSwipeRight={swipe.right}
+                    >
+                        {card}
+                    </SwipeableCard>
+                ) : card;
             })}
         </div>
     );

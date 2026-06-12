@@ -20,6 +20,7 @@ export interface User {
   avatarUrl?: string;
   activo?: boolean;
   config?: AppConfig;
+  coachCode?: string;
 }
 
 export interface Exercise {

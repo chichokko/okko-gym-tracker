@@ -2,17 +2,25 @@ import React from 'react';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'danger' | 'ghost' | 'success';
+  size?: 'sm' | 'md' | 'lg';
   fullWidth?: boolean;
 }
 
 export const Button: React.FC<ButtonProps> = ({ 
   children, 
   variant = 'primary', 
+  size = 'md',
   className, 
   fullWidth = false, 
   ...props 
 }) => {
-  const baseStyles = "h-12 px-6 rounded-xl font-semibold transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none";
+  const sizes = {
+    sm: "h-9 px-3 text-sm rounded-lg",
+    md: "h-12 px-6 rounded-xl",
+    lg: "h-14 px-8 rounded-xl text-lg",
+  };
+  
+  const baseStyles = "font-semibold transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none";
   
   const variants = {
     primary: "bg-slate-900 text-white hover:bg-slate-800 dark:bg-blue-600 dark:hover:bg-blue-500 disabled:bg-slate-300 dark:disabled:bg-slate-700",
@@ -24,7 +32,7 @@ export const Button: React.FC<ButtonProps> = ({
 
   return (
     <button
-      className={`${baseStyles} ${variants[variant]} ${fullWidth ? 'w-full' : ''} ${className || ''}`}
+      className={`${baseStyles} ${sizes[size]} ${variants[variant]} ${fullWidth ? 'w-full' : ''} ${className || ''}`}
       {...props}
     >
       {children}

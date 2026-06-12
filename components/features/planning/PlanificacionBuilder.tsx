@@ -1,18 +1,12 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Planificacion, Routine, RoutineExercise, Exercise } from '../../../types';
-import { Card, Button, Input, IconButton, Select, PageHeader, toast, Badge, Modal } from '../../ui';
+import { Card, Button, Input, IconButton, Select, PageHeader, toast, Modal, ExercisePickerModal } from '../../ui';
 import { Save, Plus, Trash2, ArrowLeft, Loader2, Download, Edit2, Search, GripVertical, ArrowUp, ArrowDown, ListOrdered } from 'lucide-react';
 import * as DataService from '../../../services/dataService';
 import { useGymData } from '../../../context/GymContext';
 import generatePDF from './PlanificacionPDF';
-
-const MUSCLE_GROUPS = [
-    "Pierna", "Pecho", "Espalda", "Hombro", "Bíceps", "Tríceps", "Abdominales", "Cardio", "Full Body", "Otro"
-];
-
-const ACCESSORIES = [
-    "Barra Olímpica", "Cuerda", "Mancuernas", "Máquina", "Polea"
-];
+import { useConfirm } from '../../../hooks/useConfirm';
+import { ConfirmDialog } from '../../ui/animations';
 
 interface PlanificacionBuilderProps {
   initialPlan: Planificacion;
@@ -52,14 +46,11 @@ const PlanificacionBuilder: React.FC<PlanificacionBuilderProps> = ({ initialPlan
   // Drag-and-drop state
   const [dragIdx, setDragIdx] = useState<number | null>(null);
 
+  const deleteConfirm = useConfirm();
+
   // State for exercise picker modal
   const [exercisePickerOpen, setExercisePickerOpen] = useState(false);
   const [pickerTargetIdx, setPickerTargetIdx] = useState<number | null>(null);
-  const [exSearchTerm, setExSearchTerm] = useState('');
-  const [isCreatingExercise, setIsCreatingExercise] = useState(false);
-  const [newExName, setNewExName] = useState('');
-  const [newExMuscle, setNewExMuscle] = useState('');
-  const [newExAccessory, setNewExAccessory] = useState('');
 
   // Refetch plan data to get days with full routine exercises
   const refetchPlan = async () => {
@@ -115,7 +106,8 @@ const PlanificacionBuilder: React.FC<PlanificacionBuilderProps> = ({ initialPlan
   };
 
   const handleDeleteDay = async (dayLine: any) => {
-    if (!confirm('¿Estás seguro de eliminar este día de la planificación?')) return;
+    const ok = await deleteConfirm.confirm({ message: '¿Estás seguro de eliminar este día de la planificación?', confirmLabel: 'Eliminar', variant: 'danger' });
+    if (!ok) return;
     const success = await DataService.removeRoutineFromPlan(dayLine.id);
     if (success) {
       toast.success('Día eliminado');
@@ -195,48 +187,9 @@ const PlanificacionBuilder: React.FC<PlanificacionBuilderProps> = ({ initialPlan
     setIsSavingDay(false);
   };
   
-  const filteredExercises = useMemo(() => {
-    if (!exSearchTerm) return exercises;
-    const q = exSearchTerm.toLowerCase();
-    return exercises.filter(e =>
-      e.name.toLowerCase().includes(q) ||
-      e.muscleGroup.toLowerCase().includes(q) ||
-      (e.accessory && e.accessory.toLowerCase().includes(q))
-    );
-  }, [exercises, exSearchTerm]);
 
-  const handleSelectExercise = (exerciseId: string) => {
-    if (pickerTargetIdx !== null) {
-      updateExerciseLine(pickerTargetIdx, 'exerciseId', exerciseId);
-    }
-    setExercisePickerOpen(false);
-    setPickerTargetIdx(null);
-    setExSearchTerm('');
-  };
 
-  const handleCreateExercise = async () => {
-    if (!newExName.trim() || !newExMuscle.trim()) {
-      toast.error('Nombre y grupo muscular son obligatorios');
-      return;
-    }
-    setIsCreatingExercise(true);
-    const saved = await DataService.saveExercise({
-      name: newExName.trim(),
-      muscleGroup: newExMuscle.trim(),
-      accessory: newExAccessory.trim() || undefined
-    });
-    if (saved) {
-      toast.success('Ejercicio creado');
-      setNewExName('');
-      setNewExMuscle('');
-      setNewExAccessory('');
-      await refreshExercises();
-      handleSelectExercise(saved.id);
-    } else {
-      toast.error('Error al crear ejercicio');
-    }
-    setIsCreatingExercise(false);
-  };
+
 
   const handleExportPDF = async () => {
      generatePDF(plan, exercises, students);
@@ -578,87 +531,19 @@ const PlanificacionBuilder: React.FC<PlanificacionBuilderProps> = ({ initialPlan
         </div>
       </Modal>
 
-      {/* EXERCISE PICKER MODAL */}
-      <Modal
+      <ExercisePickerModal
         isOpen={exercisePickerOpen}
-        onClose={() => { setExercisePickerOpen(false); setPickerTargetIdx(null); setExSearchTerm(''); }}
-        title="Seleccionar Ejercicio"
-        size="lg"
-      >
-        <div className="space-y-4">
-          <Input
-            placeholder="Buscar por nombre, grupo muscular o accesorio..."
-            value={exSearchTerm}
-            onChange={e => setExSearchTerm(e.target.value)}
-          />
+        onClose={() => { setExercisePickerOpen(false); setPickerTargetIdx(null); }}
+        onSelect={(exercise) => {
+          if (pickerTargetIdx !== null) {
+            updateExerciseLine(pickerTargetIdx, 'exerciseId', exercise.id);
+          }
+          setExercisePickerOpen(false);
+          setPickerTargetIdx(null);
+        }}
+      />
 
-          <div className="max-h-48 overflow-y-auto space-y-1 border border-slate-200 dark:border-slate-700 rounded-lg">
-            {filteredExercises.length === 0 ? (
-              <p className="p-4 text-center text-slate-500 text-sm">No se encontraron ejercicios</p>
-            ) : (
-              filteredExercises.map(e => {
-                const selected = pickerTargetIdx !== null && editingDay?.exercises[pickerTargetIdx]?.exerciseId === e.id;
-                return (
-                  <button
-                    key={e.id}
-                    type="button"
-                    onClick={() => handleSelectExercise(e.id)}
-                    className={`w-full text-left px-4 py-3 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors border-b border-slate-100 dark:border-slate-800 last:border-0 ${
-                      selected ? 'bg-blue-50 dark:bg-blue-900/20 ring-1 ring-blue-300' : ''
-                    }`}
-                  >
-                    <div>
-                      <span className="font-medium text-sm">{e.name}</span>
-                      <span className="text-xs text-slate-500 ml-2">{e.muscleGroup}</span>
-                    </div>
-                    {e.accessory && (
-                      <Badge color="bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-                        {e.accessory}
-                      </Badge>
-                    )}
-                  </button>
-                );
-              })
-            )}
-          </div>
-
-          <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
-            <h4 className="text-sm font-semibold mb-3">Crear nuevo ejercicio</h4>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
-              <Input
-                placeholder="Nombre"
-                value={newExName}
-                onChange={e => setNewExName(e.target.value)}
-              />
-              <Select
-                placeholder="Grupo muscular"
-                value={newExMuscle}
-                onChange={e => setNewExMuscle(e.target.value)}
-              >
-                <option value="">Seleccionar...</option>
-                {MUSCLE_GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
-              </Select>
-              <Select
-                placeholder="Accesorio (opcional)"
-                value={newExAccessory}
-                onChange={e => setNewExAccessory(e.target.value)}
-              >
-                <option value="">Ninguno</option>
-                {ACCESSORIES.map(a => <option key={a} value={a}>{a}</option>)}
-              </Select>
-            </div>
-            <Button
-              type="button"
-              size="sm"
-              onClick={handleCreateExercise}
-              disabled={isCreatingExercise}
-            >
-              {isCreatingExercise ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
-              Crear y seleccionar
-            </Button>
-          </div>
-        </div>
-      </Modal>
+      <ConfirmDialog {...deleteConfirm.getDialogProps()} />
 
     </div>
   );

@@ -14,6 +14,7 @@ import SettingsView from './components/features/settings/SettingsView';
 import PlanificacionManager from './components/features/planning/PlanificacionManager';
 import UpdatePassword from './components/features/auth/UpdatePassword';
 import { Toaster } from './components/ui';
+import { ClipWipeOverlay } from './components/ui/animations';
 import { User, UserRole } from './types';
 import { signOut } from './services/authService';
 import { supabase } from './lib/supabaseClient';
@@ -24,6 +25,7 @@ const AppContent: React.FC = () => {
   const { session } = useSession();
   const [user, setUser] = useState<User | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
+  const [showClipWipe, setShowClipWipe] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(() => {
     const saved = localStorage.getItem('okko-theme');
     return saved ? JSON.parse(saved) : false;
@@ -79,7 +81,8 @@ const AppContent: React.FC = () => {
             email: profileData.email,
             role: profileData.rol === 'coach' ? UserRole.COACH : UserRole.STUDENT,
             avatarUrl: profileData.avatar_url || undefined,
-            config: appConfig
+            config: appConfig,
+            coachCode: profileData.cod_coach || undefined
           });
         }
       } catch (error) {
@@ -120,47 +123,57 @@ const AppContent: React.FC = () => {
     );
   }
 
+  const handleLoginSuccess = (loggedInUser: User) => {
+    setShowClipWipe(true);
+    setUser(loggedInUser);
+  };
+
   // Allow access to Login if not authenticated
   if (!session || !user) {
-    return <Login onLoginSuccess={setUser} />;
+    return <Login onLoginSuccess={handleLoginSuccess} />;
   }
 
   // Authenticated Routes
   return (
-    <GymProvider>
-      <Routes>
-        {/* Update Password - Accessible to any authenticated user */}
-        <Route path="/update-password" element={<UpdatePassword />} />
+    <>
+      <GymProvider>
+        <Routes>
+          {/* Update Password - Accessible to any authenticated user */}
+          <Route path="/update-password" element={<UpdatePassword />} />
 
-        {/* Main App Routes - Wrapped in Layout */}
-        <Route path="/*" element={
-          <Layout user={user} onLogout={handleLogout} isDarkMode={isDarkMode} toggleTheme={toggleTheme}>
-            <Routes>
-              {user.role === UserRole.COACH ? (
-                <>
-                  <Route path="/" element={<Navigate to="/logger" replace />} />
-                  <Route path="/logger" element={<CoachSessionLogger />} />
-                  <Route path="/alumnos" element={<AlumnosWithHistory />} />
-                  <Route path="/ejercicios" element={<ExerciseManager />} />
-                  <Route path="/mi-progreso" element={<StudentDashboard user={user} />} />
-                  <Route path="/configuracion" element={<SettingsView user={user} />} />
-                  <Route path="/planificacion" element={<PlanificacionManager user={user} />} />
-                  <Route path="*" element={<Navigate to="/logger" replace />} />
-                </>
-              ) : (
-                <>
-                  <Route path="/" element={<StudentDashboard user={user} />} />
-                  <Route path="/historial" element={<SessionHistory studentId={user.id} />} />
-                  <Route path="/configuracion" element={<SettingsView user={user} />} />
-                  <Route path="/planificacion" element={<PlanificacionManager user={user} />} />
-                  <Route path="*" element={<Navigate to="/" replace />} />
-                </>
-              )}
-            </Routes>
-          </Layout>
-        } />
-      </Routes>
-    </GymProvider>
+          {/* Main App Routes - Wrapped in Layout */}
+          <Route path="/*" element={
+            <Layout user={user} onLogout={handleLogout} isDarkMode={isDarkMode} toggleTheme={toggleTheme}>
+              <Routes>
+                {user.role === UserRole.COACH ? (
+                  <>
+                    <Route path="/" element={<Navigate to="/logger" replace />} />
+                    <Route path="/logger" element={<CoachSessionLogger />} />
+                    <Route path="/alumnos" element={<AlumnosWithHistory user={user} />} />
+                    <Route path="/ejercicios" element={<ExerciseManager />} />
+                    <Route path="/mi-progreso" element={<StudentDashboard user={user} />} />
+                    <Route path="/configuracion" element={<SettingsView user={user} />} />
+                    <Route path="/planificacion" element={<PlanificacionManager user={user} />} />
+                    <Route path="*" element={<Navigate to="/logger" replace />} />
+                  </>
+                ) : (
+                  <>
+                    <Route path="/" element={<StudentDashboard user={user} />} />
+                    <Route path="/historial" element={<SessionHistory studentId={user.id} />} />
+                    <Route path="/configuracion" element={<SettingsView user={user} />} />
+                    <Route path="/planificacion" element={<PlanificacionManager user={user} />} />
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                  </>
+                )}
+              </Routes>
+            </Layout>
+          } />
+        </Routes>
+      </GymProvider>
+      {showClipWipe && (
+        <ClipWipeOverlay direction="right" onComplete={() => setShowClipWipe(false)} />
+      )}
+    </>
   );
 };
 
