@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Sun, Moon, LogOut } from 'lucide-react';
 import { User } from '../../../types';
 import { NavItem } from '../shared/NavItem';
+import { Logo } from '../shared/Logo';
 import { IconButton } from '../../ui';
 
 interface SidebarProps {
@@ -27,12 +28,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <aside className="hidden lg:flex flex-col w-64 bg-white dark:bg-slate-900 border-r border-gray-200 dark:border-slate-800 h-screen sticky top-0 p-6 z-20">
             {/* Logo */}
             <div className="flex items-center justify-between mb-10 px-2">
-                <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-white dark:bg-slate-200 rounded-lg flex items-center justify-center shadow-sm border border-slate-200 dark:border-slate-200 p-1">
-                        <img src="/okko_logo1.svg" alt="OKKO Logo" className="w-full h-full object-contain" />
-                    </div>
-                    <span className="text-xl font-bold tracking-tight">OKKO</span>
-                </div>
+                <Logo variant="horizontal" className="w-36" />
                 <IconButton onClick={toggleTheme}>
                     {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
                 </IconButton>

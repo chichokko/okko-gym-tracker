@@ -6,6 +6,8 @@ export * from './badge';
 export * from './label';
 export * from './icon-button';
 export * from './modal';
+export * from './drawer';
+export * from './modern-select';
 export * from './data-table';
 export * from './search-input';
 export * from './page-header';

@@ -1,6 +1,6 @@
 export const MUSCLE_GROUPS = [
-  "Pierna", "Pecho", "Espalda", "Hombro", "Bíceps",
-  "Tríceps", "Abdominales", "Cardio", "Full Body", "Otro"
+  "Abdomen", "Pecho", "Espalda", "Hombros", "Bíceps",
+  "Tríceps", "Cuádriceps", "Femorales", "Glúteos", "Pantorrillas", "Otro"
 ];
 
 export const ACCESSORIES = [

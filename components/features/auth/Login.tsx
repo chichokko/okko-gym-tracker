@@ -4,6 +4,7 @@ import { User } from '../../../types';
 import { Input, Button, Card } from '../../ui';
 import { AlertCircle, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { Logo } from '../../layout/shared/Logo';
 
 interface LoginProps {
   onLoginSuccess: (user: User) => void;
@@ -80,9 +81,10 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-slate-950 flex flex-col items-center justify-center p-4">
         <div className="w-full max-w-md text-center">
-          <div className="w-16 h-16 mx-auto mb-6 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center shadow-lg border border-slate-200 dark:border-slate-700 p-2">
-            <img src="/okko_logo1.svg" alt="OKKO Logo" className="w-full h-full object-contain" />
+          <div className="mb-6">
+            <Logo variant="horizontal" className="w-56 mx-auto" />
           </div>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-6">Gym Tracker</h1>
           <Card className="p-8 shadow-xl border-t-4 border-t-blue-500">
             <h2 className="text-xl font-bold mb-4">Confirma tu correo</h2>
             <p className="text-slate-500 dark:text-slate-400 mb-6">
@@ -105,10 +107,10 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     <div className="min-h-screen bg-gray-50 dark:bg-slate-950 flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-6">
-          <div className="w-16 h-16 mx-auto mb-6 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center shadow-lg border border-slate-200 dark:border-slate-700 p-2">
-            <img src="/okko_logo1.svg" alt="OKKO Logo" className="w-full h-full object-contain" />
+          <div className="mb-3">
+            <Logo variant="horizontal" className="w-56 mx-auto" />
           </div>
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">OKKO Gym Tracker</h1>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Gym Tracker</h1>
           <p className="text-slate-500 dark:text-slate-400">
             {isLoginView ? 'Ingresa tus credenciales para continuar' : 'Crea tu cuenta de alumno'}
           </p>

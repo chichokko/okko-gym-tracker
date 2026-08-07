@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Exercise, SessionExercise, SetLog } from '../../../types';
-import { Card, Button, Badge, IconButton, ExercisePickerModal } from '../../ui';
-import { Plus, ArrowLeft, PauseCircle, PlayCircle, RotateCcw, X } from 'lucide-react';
+import { Button, Badge, IconButton, ExercisePickerModal, Drawer, Modal, LoadingSpinner } from '../../ui';
+import { Plus, ArrowLeft, PauseCircle, PlayCircle, RotateCcw, X, ClipboardClock } from 'lucide-react';
 import { ActiveSession, formatTime, generateId } from './types';
+import { getLastSessionExerciseLogs, PreviousExerciseLog } from '../../../services/dataService';
 
 import { useConfirm } from '../../../hooks/useConfirm';
 import { ConfirmDialog } from '../../ui/animations';
@@ -26,6 +27,10 @@ const SessionFocusView: React.FC<SessionFocusViewProps> = ({
     onUpdateSession,
 }) => {
     const [exercisePickerOpen, setExercisePickerOpen] = useState(false);
+    const [drawerOpen, setDrawerOpen] = useState(false);
+    const [previaOpen, setPreviaOpen] = useState(false);
+    const [previaLoading, setPreviaLoading] = useState(false);
+    const [previaData, setPreviaData] = useState<PreviousExerciseLog | null>(null);
 
     const finishConfirm = useConfirm();
 
@@ -60,6 +65,16 @@ const SessionFocusView: React.FC<SessionFocusViewProps> = ({
 
     const activeExercise = session.exercises.find(e => e.id === session.activeExerciseId);
 
+    const openPrevia = useCallback(async () => {
+        if (!activeExercise) return;
+        setPreviaOpen(true);
+        setPreviaLoading(true);
+        setPreviaData(null);
+        const data = await getLastSessionExerciseLogs(session.student.id, activeExercise.exercise.id);
+        setPreviaData(data);
+        setPreviaLoading(false);
+    }, [activeExercise, session.student.id]);
+
 
     const handleDeleteExercise = (exId: string) => {
         onUpdateSession(s => ({
@@ -82,6 +97,7 @@ const SessionFocusView: React.FC<SessionFocusViewProps> = ({
             exercises: [...s.exercises, newEx],
             activeExerciseId: newEx.id
         }));
+        setDrawerOpen(true);
     };
 
     const handleAddSet = (weight = 0, reps = 0, rpe = 0) => {
@@ -150,11 +166,11 @@ const SessionFocusView: React.FC<SessionFocusViewProps> = ({
             {/* Content */}
             <div className="flex-1 flex flex-col md:flex-row gap-6 overflow-hidden">
                 {/* Exercise List */}
-                <div className="md:w-1/3 overflow-y-auto no-scrollbar space-y-2 pb-20 md:pb-0">
+                <div className="md:w-2/5 xl:w-1/3 overflow-y-auto no-scrollbar space-y-2 pb-20 md:pb-0">
                     {session.exercises.map(ex => (
                         <div
                             key={ex.id}
-                            onClick={() => setActiveExercise(ex.id)}
+                            onClick={() => { setActiveExercise(ex.id); setDrawerOpen(true); }}
                             className={`p-3 rounded-lg cursor-pointer border flex justify-between items-center group ${session.activeExerciseId === ex.id
                                 ? 'bg-white dark:bg-slate-800 border-blue-500 shadow-sm'
                                 : 'border-transparent hover:bg-white dark:hover:bg-slate-800'
@@ -192,114 +208,163 @@ const SessionFocusView: React.FC<SessionFocusViewProps> = ({
                     </div>
                 </div>
 
-                {/* Set Logger Panel */}
-                <div className="md:w-2/3 flex flex-col bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800">
-                    {activeExercise ? (
-                        <>
-                            {/* Exercise Header + Timer */}
-                            <div className="p-4 border-b border-gray-100 dark:border-slate-800 flex justify-between items-center bg-gray-50 dark:bg-slate-800/50 rounded-t-xl">
-                                <div>
-                                    <h3 className="text-xl font-bold">{activeExercise.exercise.name}</h3>
-                                    {activeExercise.notes && (
-                                        <Badge color="bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-300 border border-blue-100 dark:border-blue-900">
-                                            {activeExercise.notes}
-                                        </Badge>
-                                    )}
-                                </div>
-                                <div className="flex items-center gap-2 bg-white dark:bg-slate-900 p-1.5 rounded-lg border border-gray-200 dark:border-slate-700 shadow-sm">
-                                    <div className={`font-mono font-bold text-lg w-16 text-center ${isTimerRunning ? 'text-blue-500' : 'text-slate-600 dark:text-slate-300'}`}>
-                                        {formatTime(globalTimer)}
-                                    </div>
-                                    <div className="flex gap-1">
-                                        <button onClick={toggleTimer} className={`p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors ${isTimerRunning ? 'text-blue-500' : 'text-slate-500'}`}>
-                                            {isTimerRunning ? <PauseCircle size={20} /> : <PlayCircle size={20} />}
-                                        </button>
-                                        <button onClick={resetTimer} className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-red-500 transition-colors">
-                                            <RotateCcw size={18} />
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Sets Grid */}
-                            <div className="flex-1 overflow-y-auto p-4 space-y-2">
-                                <div className="grid grid-cols-10 gap-2 px-2 text-xs font-bold text-slate-400 uppercase">
-                                    <div className="col-span-1 text-center">#</div>
-                                    <div className="col-span-3 text-center">KG</div>
-                                    <div className="col-span-3 text-center">Reps</div>
-                                    <div className="col-span-2 text-center">RPE</div>
-                                </div>
-                                {activeExercise.sets.map((set, idx) => (
-                                    <div key={set.id} className="grid grid-cols-10 gap-2 items-center animate-in slide-in-from-left-2 fade-in duration-300">
-                                        <div className="col-span-1 text-center font-bold text-slate-500">{idx + 1}</div>
-                                        <div className="col-span-3">
-                                            <input
-                                                type="number"
-                                                className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded text-center font-bold py-2 focus:ring-2 ring-blue-500"
-                                                value={set.weight || ''}
-                                                onChange={e => handleUpdateSet(set.id, 'weight', Number(e.target.value))}
-                                                placeholder="-"
-                                            />
-                                        </div>
-                                        <div className="col-span-3">
-                                            <input
-                                                type="number"
-                                                className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded text-center font-bold py-2 focus:ring-2 ring-blue-500"
-                                                value={set.reps || ''}
-                                                onChange={e => handleUpdateSet(set.id, 'reps', Number(e.target.value))}
-                                                placeholder="-"
-                                            />
-                                        </div>
-                                        <div className="col-span-2">
-                                            <input
-                                                type="number"
-                                                min={1}
-                                                max={10}
-                                                step={1}
-                                                className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded text-center font-medium py-2 text-sm"
-                                                value={set.rpe || ''}
-                                                onChange={e => {
-                                                    const val = Number(e.target.value);
-                                                    if (val >= 0 && val <= 10) handleUpdateSet(set.id, 'rpe', val);
-                                                }}
-                                                placeholder="-"
-                                            />
-                                        </div>
-                                        <div className="col-span-1 flex justify-center">
-                                            <button className="text-slate-300 hover:text-red-500" onClick={() => handleDeleteSet(set.id)}>
-                                                <X size={16} />
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-
-                            {/* Add Set Button */}
-                            <div className="p-4 bg-slate-50 dark:bg-slate-800/50 mt-auto">
-                                <Button
-                                    fullWidth
-                                    onClick={() => {
-                                        const lastSet = activeExercise.sets[activeExercise.sets.length - 1];
-                                        handleAddSet(lastSet?.weight, lastSet?.reps, 8);
-                                    }}
-                                >
-                                    <Plus size={18} /> Añadir Serie
-                                </Button>
-                            </div>
-                        </>
-                    ) : (
-                        <div className="flex-1 flex flex-col items-center justify-center text-slate-400 p-8 text-center">
-                            <p>Selecciona un ejercicio de la izquierda o añade uno nuevo.</p>
-                        </div>
-                    )}
-                </div>
+                {/* Hint Panel (desktop, no active exercise) */}
+                {!activeExercise && (
+                    <div className="hidden md:flex md:w-3/5 xl:w-2/3 flex-col items-center justify-center text-slate-400 p-8 text-center bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800">
+                        <p>Selecciona un ejercicio de la izquierda o añade uno nuevo para registrar tus series.</p>
+                    </div>
+                )}
             </div>
+
+            {/* Set Logger Drawer */}
+            <Drawer isOpen={drawerOpen} onClose={() => setDrawerOpen(false)} title={activeExercise?.exercise.name || 'Nuevo ejercicio'}>
+                {activeExercise && (
+                    <>
+                        {/* Exercise Header + Timer */}
+                        <div className="flex items-center justify-between gap-3 mb-4">
+                            <div>
+                                {activeExercise.notes && (
+                                    <Badge color="bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-300 border border-blue-100 dark:border-blue-900">
+                                        {activeExercise.notes}
+                                    </Badge>
+                                )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={openPrevia}
+                                    title="Previa"
+                                    className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors"
+                                >
+                                    <ClipboardClock size={20} />
+                                </button>
+                                <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 p-1.5 rounded-lg border border-gray-200 dark:border-slate-700 shadow-sm">
+                                <div className={`font-mono font-bold text-lg w-16 text-center ${isTimerRunning ? 'text-blue-500' : 'text-slate-600 dark:text-slate-300'}`}>
+                                    {formatTime(globalTimer)}
+                                </div>
+                                <div className="flex gap-1">
+                                    <button onClick={toggleTimer} className={`p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors ${isTimerRunning ? 'text-blue-500' : 'text-slate-500'}`}>
+                                        {isTimerRunning ? <PauseCircle size={20} /> : <PlayCircle size={20} />}
+                                    </button>
+                                    <button onClick={resetTimer} className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-red-500 transition-colors">
+                                        <RotateCcw size={18} />
+                                    </button>
+                                </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Sets Grid */}
+                        <div className="space-y-2 mb-4">
+                            <div className="grid grid-cols-10 gap-2 px-2 text-xs font-bold text-slate-400 uppercase">
+                                <div className="col-span-1 text-center">#</div>
+                                <div className="col-span-3 text-center">KG</div>
+                                <div className="col-span-3 text-center">Reps</div>
+                                <div className="col-span-2 text-center">RPE</div>
+                            </div>
+                            {activeExercise.sets.map((set, idx) => (
+                                <div key={set.id} className="grid grid-cols-10 gap-2 items-center animate-in slide-in-from-left-2 fade-in duration-300">
+                                    <div className="col-span-1 text-center font-bold text-slate-500">{idx + 1}</div>
+                                    <div className="col-span-3">
+                                        <input
+                                            type="number"
+                                            className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded text-center font-bold py-2 focus:ring-2 ring-blue-500"
+                                            value={set.weight || ''}
+                                            onChange={e => handleUpdateSet(set.id, 'weight', Number(e.target.value))}
+                                            placeholder="-"
+                                        />
+                                    </div>
+                                    <div className="col-span-3">
+                                        <input
+                                            type="number"
+                                            className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded text-center font-bold py-2 focus:ring-2 ring-blue-500"
+                                            value={set.reps || ''}
+                                            onChange={e => handleUpdateSet(set.id, 'reps', Number(e.target.value))}
+                                            placeholder="-"
+                                        />
+                                    </div>
+                                    <div className="col-span-2">
+                                        <input
+                                            type="number"
+                                            min={1}
+                                            max={10}
+                                            step={1}
+                                            className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded text-center font-medium py-2 text-sm"
+                                            value={set.rpe || ''}
+                                            onChange={e => {
+                                                const val = Number(e.target.value);
+                                                if (val >= 0 && val <= 10) handleUpdateSet(set.id, 'rpe', val);
+                                            }}
+                                            placeholder="-"
+                                        />
+                                    </div>
+                                    <div className="col-span-1 flex justify-center">
+                                        <button className="text-slate-300 hover:text-red-500" onClick={() => handleDeleteSet(set.id)}>
+                                            <X size={16} />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Add Set Button */}
+                        <div className="sticky bottom-0 bg-white dark:bg-slate-900 pt-2">
+                            <Button
+                                fullWidth
+                                onClick={() => {
+                                    const lastSet = activeExercise.sets[activeExercise.sets.length - 1];
+                                    handleAddSet(lastSet?.weight, lastSet?.reps, 8);
+                                }}
+                            >
+                                <Plus size={18} /> Añadir Serie
+                            </Button>
+                        </div>
+                    </>
+                )}
+            </Drawer>
 
             <ExercisePickerModal
                 isOpen={exercisePickerOpen}
                 onClose={() => setExercisePickerOpen(false)}
                 onSelect={(exercise) => { handleAddExercise(exercise); setExercisePickerOpen(false); }}
             />
+
+            {/* Previa Modal: últimos registros del ejercicio en la última sesión */}
+            <Modal
+                isOpen={previaOpen}
+                onClose={() => setPreviaOpen(false)}
+                title={activeExercise?.exercise.name || 'Previa'}
+            >
+                {previaLoading ? (
+                    <div className="flex justify-center py-8">
+                        <LoadingSpinner />
+                    </div>
+                ) : !previaData || previaData.sets.length === 0 ? (
+                    <p className="text-slate-500 dark:text-slate-400 text-center py-8">
+                        Sin registros previos de este ejercicio.
+                    </p>
+                ) : (
+                    <>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
+                            Última sesión: <strong className="text-slate-900 dark:text-white">{previaData.date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })}</strong>
+                        </p>
+                        <div className="space-y-2">
+                            {previaData.sets.map(set => (
+                                <div key={set.nroSerie} className="flex items-center justify-between gap-3 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                                    <span className="font-bold text-slate-500 dark:text-slate-400 w-6 text-center">{set.nroSerie}</span>
+                                    <span className="font-bold text-slate-900 dark:text-white flex-1">
+                                        {set.weight} kg × {set.reps}
+                                    </span>
+                                    {set.rpe > 0 && (
+                                        <Badge color="bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-300 border border-blue-100 dark:border-blue-900">
+                                            {set.rpe} RPE
+                                        </Badge>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </>
+                )}
+            </Modal>
 
             <ConfirmDialog {...finishConfirm.getDialogProps()} />
         </div>

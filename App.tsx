@@ -6,6 +6,7 @@ import Layout from './components/Layout';
 import Login from './components/features/auth/Login';
 import CoachSessionLogger from './components/CoachSessionLogger';
 import StudentDashboard from './components/features/students/StudentDashboard';
+import CoachProgressView from './components/features/students/CoachProgressView';
 import AlumnosWithHistory from './components/features/students/AlumnosWithHistory';
 // Legacy: Routines removed from frontend access
 import ExerciseManager from './components/features/routines/ExerciseManager';
@@ -151,7 +152,8 @@ const AppContent: React.FC = () => {
                     <Route path="/logger" element={<CoachSessionLogger />} />
                     <Route path="/alumnos" element={<AlumnosWithHistory user={user} />} />
                     <Route path="/ejercicios" element={<ExerciseManager />} />
-                    <Route path="/mi-progreso" element={<StudentDashboard user={user} />} />
+                    <Route path="/progresos" element={<CoachProgressView user={user} />} />
+                    <Route path="/mi-progreso" element={<Navigate to="/progresos" replace />} />
                     <Route path="/configuracion" element={<SettingsView user={user} />} />
                     <Route path="/planificacion" element={<PlanificacionManager user={user} />} />
                     <Route path="*" element={<Navigate to="/logger" replace />} />

@@ -979,3 +979,47 @@ export const getCompletedSessions = async (studentId?: string): Promise<Complete
 // Aquí podrías poner lógica para verificar auth
 //return true;
 //}
+
+export interface PreviousExerciseLog {
+    date: Date;
+    sets: Array<{ nroSerie: number; weight: number; reps: number; rpe: number }>;
+}
+
+export const getLastSessionExerciseLogs = async (studentId: string, exerciseId: string): Promise<PreviousExerciseLog | null> => {
+    const { data, error } = await supabase
+        .from('sesion')
+        .select(`
+            fecha,
+            detalle_sesion!inner (
+                nro_serie,
+                peso_kg,
+                reps_reales,
+                rpe
+            )
+        `)
+        .eq('alumno_id', studentId)
+        .eq('activo', false)
+        .eq('detalle_sesion.ejercicio_id', exerciseId)
+        .order('fecha', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+    if (error) {
+        await handleAuthError(error);
+        return null;
+    }
+    if (!data) return null;
+
+    const detalles = data.detalle_sesion || [];
+    return {
+        date: new Date(data.fecha),
+        sets: detalles
+            .sort((a: any, b: any) => (a.nro_serie || 0) - (b.nro_serie || 0))
+            .map((d: any) => ({
+                nroSerie: d.nro_serie || 0,
+                weight: d.peso_kg || 0,
+                reps: d.reps_reales || 0,
+                rpe: d.rpe || 0
+            }))
+    };
+};

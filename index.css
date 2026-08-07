@@ -3,11 +3,11 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-    font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+    font-family: 'Archivo', system-ui, Avenir, Helvetica, Arial, sans-serif;
 }
 
 @theme {
-    --font-sans: 'Inter', 'sans-serif';
+    --font-sans: 'Archivo', 'sans-serif';
     --color-primary: #0f172a;
     --color-accent: #3b82f6;
     --color-success: #10b981;

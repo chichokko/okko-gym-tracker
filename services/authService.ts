@@ -96,7 +96,7 @@ export const signUpWithEmail = async (
     }
 
     // 3. Crear el perfil en persona
-    const { error: profileError } = await supabase
+    const { data: insertedPersona, error: profileError } = await supabase
       .from('persona')
       .insert({
         user_id: authData.user.id,
@@ -105,11 +105,22 @@ export const signUpWithEmail = async (
         email: email,
         rol: 'alumno',
         cod_coach: cod_coach
-      });
+      })
+      .select('id')
+      .single();
 
     if (profileError) {
       console.error("Profile insert error:", profileError);
       return { user: null, error: "Usuario creado, pero hubo un error al crear el perfil." };
+    }
+
+    // 4. If coach code was used, also create the coach_alumno relationship
+    if (cod_coach && insertedPersona) {
+      await supabase.from('coach_alumno').insert({
+        id_alumno: insertedPersona.id,
+        id_coach: cod_coach,
+        activo: true
+      });
     }
 
     // El signUp inicia sesión automáticamente, así que podemos intentar devolver el User formateado.

@@ -33,7 +33,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, isDarkMode, t
       { label: 'Alumnos', icon: Users, path: '/alumnos' },
       { label: 'Planificación', icon: ClipboardList, path: '/planificacion' },
       { label: 'Ejercicios', icon: Dumbbell, path: '/ejercicios' },
-      { label: 'Mi Progreso', icon: Activity, path: '/mi-progreso' },
+      { label: 'Progresos', icon: Activity, path: '/progresos' },
       { label: 'Configuración', icon: Settings, path: '/configuracion' },
     ]
     : [

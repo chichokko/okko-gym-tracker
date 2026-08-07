@@ -5,9 +5,23 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>OKKO | Gym Tracker</title>
-  <link rel="icon" href="/okko_logo1.svg" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="/okko_logo1.svg">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" href="/okko_square.svg" type="image/svg+xml" media="(prefers-color-scheme: light)">
+  <link rel="icon" href="/dark_okko_square.svg" type="image/svg+xml" media="(prefers-color-scheme: dark)">
+  <link rel="apple-touch-icon" href="/okko_square.svg">
+  <script>
+    (function () {
+      var darkSchemeLink = document.querySelector('link[media="(prefers-color-scheme: dark)"]');
+      if (!darkSchemeLink) return;
+      function updateFavicon() {
+        var isDark = document.documentElement.classList.contains('dark');
+        darkSchemeLink.media = isDark ? '(prefers-color-scheme: light)' : '(prefers-color-scheme: dark)';
+      }
+      var observer = new MutationObserver(updateFavicon);
+      observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+      updateFavicon();
+    })();
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
   <style>
     body {
       -webkit-tap-highlight-color: transparent;
