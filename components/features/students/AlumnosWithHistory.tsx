@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User } from '../../../types';
-import { PageHeader, DataTable, Column, Modal, Input, Button, Badge, toast, MobileCardList } from '../../ui';
-import { Search, Plus, Edit2, Save, X, Loader2, Link2, Unlink } from 'lucide-react';
+import { PageHeader, DataTable, Column, Modal, Input, Button, Badge, toast, MobileCardList, FloatingActionButton } from '../../ui';
+import { Search, Plus, Edit2, Save, X, Loader2, Link2, Unlink, UserPlus } from 'lucide-react';
 import * as DataService from '../../../services/dataService';
 import { useGymData } from '../../../context/GymContext';
 import SessionHistory from '../../features/sessions/SessionHistory';
@@ -179,7 +179,7 @@ const AlumnosWithHistory: React.FC<Props> = ({ user }) => {
               title="Alumnos"
               subtitle={'Gestiona información de tus alumnos'}
               action={
-                <Button onClick={() => setShowLinkModal(true)} size="sm" className="sm:h-12 sm:px-6 sm:text-base">
+                <Button onClick={() => setShowLinkModal(true)} size="sm" className="hidden md:inline-flex sm:h-12 sm:px-6 sm:text-base">
                   <Link2 size={20} /> Vincular Alumno
                 </Button>
               }
@@ -364,6 +364,14 @@ const AlumnosWithHistory: React.FC<Props> = ({ user }) => {
         </>
       ) : (
         <SessionHistory />
+      )}
+
+      {activeTab === 'alumnos' && (
+        <FloatingActionButton
+          onClick={() => setShowLinkModal(true)}
+          icon={<UserPlus size={24} />}
+          label="Vincular alumno"
+        />
       )}
     </div>
   );

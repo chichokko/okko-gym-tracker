@@ -9,6 +9,9 @@ import { useGymData } from '../context/GymContext';
 import { useConfirm } from '../hooks/useConfirm';
 import { ConfirmDialog, PixelsOverlay } from './ui/animations';
 import { useSessionStore } from '../store/useSessionStore';
+import OneRMCalculator from './features/OneRMCalculator';
+
+const rmCalculator = <OneRMCalculator />;
 
 const CoachSessionLogger: React.FC = () => {
     const { students, routines, exercises, isLoading: isGlobalLoading, refreshExercises } = useGymData();
@@ -141,6 +144,7 @@ const CoachSessionLogger: React.FC = () => {
                 {showPixelsTransition && (
                     <PixelsOverlay onComplete={() => { setShowPixelsTransition(false); setViewMode('DASHBOARD'); }} />
                 )}
+                {rmCalculator}
             </>
         );
     }
@@ -153,14 +157,17 @@ const CoachSessionLogger: React.FC = () => {
         }
 
         return (
-            <SessionFocusView
-                session={session}
-                availableExercises={exercises}
-                isLoading={isSaving}
-                onBack={() => setViewMode('DASHBOARD')}
-                onFinishSession={() => handleFinishSession(session.internalId)}
-                onUpdateSession={(updater) => sessionStore.updateSession(focusedStudentId, updater)}
-            />
+            <>
+                <SessionFocusView
+                    session={session}
+                    availableExercises={exercises}
+                    isLoading={isSaving}
+                    onBack={() => setViewMode('DASHBOARD')}
+                    onFinishSession={() => handleFinishSession(session.internalId)}
+                    onUpdateSession={(updater) => sessionStore.updateSession(focusedStudentId, updater)}
+                />
+                {rmCalculator}
+            </>
         );
     }
 
@@ -174,6 +181,7 @@ const CoachSessionLogger: React.FC = () => {
                 onDiscardSession={handleDiscardSession}
             />
             <ConfirmDialog {...sessionConfirm.getDialogProps()} />
+            {rmCalculator}
         </>
     );
 };

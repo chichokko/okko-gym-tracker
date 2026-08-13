@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Exercise } from '../../../types';
-import { Button, Input, IconButton, Select, Badge, PageHeader, EmptyState, LoadingOverlay, MobileCardList, PaginationBar, Modal } from '../../ui';
+import { Button, Input, IconButton, Select, Badge, PageHeader, EmptyState, LoadingOverlay, MobileCardList, PaginationBar, Modal, FloatingActionButton } from '../../ui';
 import { Plus, Edit2, Trash2, Search, Dumbbell, Save, Loader2, Video } from 'lucide-react';
 import * as DataService from '../../../services/dataService';
 import { useGymData } from '../../../context/GymContext';
@@ -91,7 +91,7 @@ const ExerciseManager: React.FC = () => {
                 title="Ejercicios"
                 subtitle={`Biblioteca de movimientos (${exercises.length})`}
                 action={
-                    <Button onClick={() => setIsEditing(true)}>
+                    <Button onClick={() => setIsEditing(true)} className="hidden md:inline-flex">
                         <Plus size={20} /> Nuevo Ejercicio
                     </Button>
                 }
@@ -258,6 +258,12 @@ const ExerciseManager: React.FC = () => {
                     </div>
                 </>
             )}
+
+            <FloatingActionButton
+                onClick={() => setIsEditing(true)}
+                icon={<Plus size={24} />}
+                label="Nuevo ejercicio"
+            />
         </div >
     );
 };

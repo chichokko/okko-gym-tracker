@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface LogoProps {
   className?: string;
@@ -19,8 +19,19 @@ const sizeClasses = {
   },
 };
 
+const isDarkNow = () => typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
+
 export const Logo: React.FC<LogoProps> = ({ className = '', variant = 'square', size = 'sm' }) => {
-  const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
+  const [isDark, setIsDark] = useState(isDarkNow);
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsDark(prev => (prev === isDarkNow() ? prev : isDarkNow()));
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
+
   const src = isDark
     ? variant === 'horizontal' ? '/dark_okko_logo.svg' : '/dark_okko_square.svg'
     : variant === 'horizontal' ? '/okko_logo.svg' : '/okko_square.svg';

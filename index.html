@@ -5,16 +5,15 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>OKKO | Gym Tracker</title>
-  <link rel="icon" href="/okko_square.svg" type="image/svg+xml" media="(prefers-color-scheme: light)">
-  <link rel="icon" href="/dark_okko_square.svg" type="image/svg+xml" media="(prefers-color-scheme: dark)">
+  <link rel="icon" id="favicon" href="/okko_square.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/okko_square.svg">
   <script>
     (function () {
-      var darkSchemeLink = document.querySelector('link[media="(prefers-color-scheme: dark)"]');
-      if (!darkSchemeLink) return;
+      var favicon = document.getElementById('favicon');
+      if (!favicon) return;
       function updateFavicon() {
         var isDark = document.documentElement.classList.contains('dark');
-        darkSchemeLink.media = isDark ? '(prefers-color-scheme: light)' : '(prefers-color-scheme: dark)';
+        favicon.href = isDark ? '/dark_okko_square.svg' : '/okko_square.svg';
       }
       var observer = new MutationObserver(updateFavicon);
       observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });

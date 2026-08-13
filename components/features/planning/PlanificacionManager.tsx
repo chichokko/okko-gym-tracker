@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Planificacion, User, UserRole } from '../../../types';
-import { Card, Button, PageHeader, EmptyState, LoadingOverlay, Badge, PaginationBar } from '../../ui';
+import { Card, Button, PageHeader, EmptyState, LoadingOverlay, Badge, PaginationBar, FloatingActionButton } from '../../ui';
 import { Plus, CalendarDays, ChevronRight, Download, Eye } from 'lucide-react';
 import * as DataService from '../../../services/dataService';
 import PlanificacionBuilder from './PlanificacionBuilder';
@@ -90,7 +90,7 @@ const PlanificacionManager: React.FC<PlanificacionManagerProps> = ({ user }) => 
         title="Planificación"
         subtitle={isStudent ? 'Planificaciones asignadas a ti' : 'Gestiona los macro y mesociclos de tus alumnos'}
         action={!isStudent && (
-          <Button onClick={handleCreateNew}>
+          <Button onClick={handleCreateNew} className="hidden md:inline-flex">
             <Plus size={20} /> Crear Plan
           </Button>
         )}
@@ -145,6 +145,14 @@ const PlanificacionManager: React.FC<PlanificacionManagerProps> = ({ user }) => 
             onPageChange={setCurrentPage}
           />
         </div>
+      )}
+
+      {!isStudent && (
+        <FloatingActionButton
+          onClick={handleCreateNew}
+          icon={<Plus size={24} />}
+          label="Crear plan"
+        />
       )}
     </div>
   );

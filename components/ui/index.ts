@@ -5,6 +5,7 @@ export * from './select';
 export * from './badge';
 export * from './label';
 export * from './icon-button';
+export * from './floating-action-button';
 export * from './modal';
 export * from './drawer';
 export * from './modern-select';

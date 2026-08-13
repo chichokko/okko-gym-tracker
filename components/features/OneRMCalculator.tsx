@@ -50,7 +50,7 @@ const OneRMCalculator: React.FC = () => {
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 z-40 flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-full shadow-lg hover:shadow-xl transition-all animate-in fade-in"
+        className="fixed bottom-6 left-6 lg:left-72 z-40 flex items-center gap-2 bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-900 px-4 py-3 rounded-full shadow-lg transition-all animate-in fade-in"
         title="Calculadora 1RM"
       >
         <Calculator size={20} />

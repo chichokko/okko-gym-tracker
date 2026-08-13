@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { UserRole, User } from '../types';
-import OneRMCalculator from './features/OneRMCalculator';
 import {
   PlayCircle,
   Users,
@@ -92,9 +91,6 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, isDarkMode, t
         items={bottomNavItems}
         onMoreClick={() => setIsMobileMenuOpen(true)}
       /> */}
-
-      {/* 1RM Calculator FAB */}
-      {isCoach && <OneRMCalculator />}
     </div>
   );
 };

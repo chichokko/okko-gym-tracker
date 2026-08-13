@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Card, Button, PageHeader, EmptyState, LoadingOverlay, PaginationBar } from '../../ui';
+import { Card, Button, PageHeader, EmptyState, LoadingOverlay, PaginationBar, FloatingActionButton } from '../../ui';
 import { TypewriterText } from '../../ui/animations';
 import { Plus, Users, X } from 'lucide-react';
 import { ActiveSession } from './types';
@@ -42,7 +42,7 @@ const SessionDashboard: React.FC<SessionDashboardProps> = ({
                 title={<TypewriterText text="Sala de Musculación" />}
                 subtitle={`${activeSessions.length} ${activeSessions.length === 1 ? 'Alumno' : 'Alumnos'} entrenando ahora`}
                 action={
-                    <Button onClick={onStartNew}>
+                    <Button onClick={onStartNew} className="hidden md:inline-flex">
                         <Plus size={20} /> Iniciar
                     </Button>
                 }
@@ -53,7 +53,7 @@ const SessionDashboard: React.FC<SessionDashboardProps> = ({
                     icon={Users}
                     message="No hay alumnos entrenando actualmente."
                     action={
-                        <Button onClick={onStartNew}>
+                        <Button onClick={onStartNew} className="hidden md:inline-flex">
                             <Plus size={18} /> Iniciar Sesión
                         </Button>
                     }
@@ -119,6 +119,11 @@ const SessionDashboard: React.FC<SessionDashboardProps> = ({
                     </div>
                 </div>
             )}
+            <FloatingActionButton
+                onClick={onStartNew}
+                icon={<Plus size={24} />}
+                label="Iniciar sesión"
+            />
         </div>
     );
 };

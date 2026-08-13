@@ -679,6 +679,79 @@ export const getActivePlanificacionRoutines = async (studentId: string): Promise
 
 // --- SESIONES ---
 
+export const getStudentCoachName = async (studentId: string): Promise<string | null> => {
+  try {
+    const { data: student } = await supabase
+      .from('persona')
+      .select('cod_coach')
+      .eq('id', studentId)
+      .single();
+
+    if (!student?.cod_coach) return null;
+
+    const { data: coach } = await supabase
+      .from('persona')
+      .select('nombre, apellido')
+      .eq('id', student.cod_coach)
+      .single();
+
+    if (!coach) return null;
+    return `${coach.nombre} ${coach.apellido}`.trim();
+  } catch (error) {
+    console.error("Error fetching coach name:", error);
+    return null;
+  }
+};
+
+export const getStudentPlanDetail = async (studentId: string): Promise<{
+  duration?: string;
+  active: boolean;
+  dayCount: number;
+  exerciseIds: string[];
+} | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('planificacion')
+      .select(`
+        id,
+        duracion,
+        activo,
+        rutina_planificacion (
+          id,
+          rutina (
+            id,
+            rutina_ejercicio (
+              ejercicio_id
+            )
+          )
+        )
+      `)
+      .eq('alumno_id', studentId)
+      .order('created_at', { ascending: false });
+
+    if (error || !data || data.length === 0) return null;
+
+    const plan = data.find((p: any) => p.activo === true) || data[0];
+    const routines = plan.rutina_planificacion || [];
+    const exerciseIds = [...new Set(
+      routines
+        .flatMap((rp: any) => rp.rutina?.rutina_ejercicio || [])
+        .map((re: any) => re.ejercicio_id)
+        .filter(Boolean)
+    )];
+
+    return {
+      duration: plan.duracion || undefined,
+      active: plan.activo === true,
+      dayCount: Math.min(routines.length, 7),
+      exerciseIds
+    };
+  } catch (error) {
+    await handleAuthError(error);
+    return null;
+  }
+};
+
 export const getActiveSessions = async (): Promise<Session[]> => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return [];
